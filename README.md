@@ -1,4 +1,4 @@
-# 🤖 Bot Platform — 多租户机器人托管平台
+# 🤖 HiveDeploy — 多租户机器人托管平台
 
 基于 **AstrBot + NapCat + Docker** 的共享机器人框架服务器。
 支持多用户独立实例、一键创建、WebUI 管理、文件管理、实时日志。

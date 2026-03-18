@@ -1,0 +1,64 @@
+services:
+  panel:
+    build: ./panel
+    container_name: bot_panel
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change_this_secret_key_in_production}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - DATA_DIR=/data/instances
+      - DOCKER_SOCKET=/var/run/docker.sock
+      - PLATFORM_HOST=${PLATFORM_HOST:-localhost}
+      - BOT_NETWORK=bot_user_net
+      - INSTANCE_PORT_BASE=${INSTANCE_PORT_BASE:-20000}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - bot_panel_db:/app/db
+      - bot_instances_data:/data/instances
+    networks:
+      - bot_panel_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.panel.rule=Host(`bot1.yusolab.com`)"
+      - "traefik.http.routers.panel.entrypoints=websecure"
+      - "traefik.http.routers.panel.tls=true"
+      - "traefik.http.services.panel.loadbalancer.server.port=3000"
+
+  traefik:
+    image: traefik:latest
+    container_name: bot_traefik
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=bot_panel_net"
+      - "--providers.file.filename=/etc/traefik/tls.yml"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.traefik.address=:8080"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/tls.yml:/etc/traefik/tls.yml:ro
+      - ./traefik/certs:/certs:ro
+    networks:
+      - bot_panel_net
+
+volumes:
+  bot_panel_db:
+  bot_instances_data:
+
+networks:
+  bot_panel_net:
+    name: bot_panel_net
+    external: true
+  bot_user_net:
+    name: bot_user_net
+    external: true

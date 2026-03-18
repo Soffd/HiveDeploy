@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 — Bot Platform</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: #0d1117; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .auth-card { background: #161b22; border: 1px solid #30363d; border-radius: 16px;
+                 width: 100%; max-width: 400px; padding: 2.5rem; }
+    .brand { color: #58a6ff; font-size: 1.6rem; font-weight: 700; }
+    .form-control { background: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 8px; }
+    .form-control:focus { background: #0d1117; border-color: #58a6ff; color: #e6edf3; box-shadow: 0 0 0 3px rgba(88,166,255,.15); }
+    .btn-primary { background: #238636; border: 1px solid #2ea043; border-radius: 8px; }
+    .btn-primary:hover { background: #2ea043; }
+    label { color: #8b949e; font-size: .875rem; }
+    .divider { border-color: #30363d; }
+  </style>
+</head>
+<body>
+<div class="auth-card">
+  <div class="text-center mb-4">
+    <div class="brand"><i class="bi bi-robot me-2"></i>Bot Platform</div>
+    <p class="text-secondary mt-1 mb-0" style="font-size:.9rem;">多租户机器人托管平台</p>
+  </div>
+
+  {% if request.query_params.get('registered') %}
+  <div class="alert alert-success py-2 mb-3" style="font-size:.875rem;">
+    <i class="bi bi-check-circle me-1"></i>注册成功，请登录
+  </div>
+  {% endif %}
+  {% if request.query_params.get('pw_changed') %}
+  <div class="alert alert-success py-2 mb-3" style="font-size:.875rem;">
+    <i class="bi bi-check-circle me-1"></i>密码已修改，请重新登录
+  </div>
+  {% endif %}
+
+  {% if error %}
+  <div class="alert alert-danger py-2 mb-3" style="font-size:.875rem;">
+    <i class="bi bi-exclamation-triangle me-1"></i>{{ error }}
+  </div>
+  {% endif %}
+
+  <form method="post" action="/login">
+    <div class="mb-3">
+      <label class="form-label">用户名</label>
+      <input type="text" class="form-control" name="username" required autofocus
+             placeholder="输入用户名">
+    </div>
+    <div class="mb-4">
+      <label class="form-label">密码</label>
+      <input type="password" class="form-control" name="password" required
+             placeholder="输入密码">
+    </div>
+    <button type="submit" class="btn btn-primary w-100">
+      <i class="bi bi-box-arrow-in-right me-1"></i>登录
+    </button>
+  </form>
+
+  <p class="text-center text-secondary mb-0 mt-3" style="font-size:.78rem;">
+    账号由管理员创建，如需开通请联系管理员
+  </p>
+</div>
+</body>
+</html>

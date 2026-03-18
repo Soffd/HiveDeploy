@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ service }} 日志 — Bot Platform{% endblock %}
+{% block nav_logs_a %}{% if service == 'astrbot' %}active{% endif %}{% endblock %}
+{% block nav_logs_n %}{% if service == 'napcat' %}active{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="mb-0 fw-semibold">
+      <i class="bi bi-terminal me-2"></i>{{ service }} 日志
+    </h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;">
+      容器: {{ service }}_{{ user.username }} — 最近 200 行
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    {% if service == 'astrbot' %}
+    <a href="/logs/napcat" class="btn btn-sm btn-outline-secondary btn-action">切换到 NapCat</a>
+    {% else %}
+    <a href="/logs/astrbot" class="btn btn-sm btn-outline-secondary btn-action">切换到 AstrBot</a>
+    {% endif %}
+    <button onclick="refreshLogs()" class="btn btn-sm btn-outline-primary btn-action">
+      <i class="bi bi-arrow-clockwise me-1"></i>刷新
+    </button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="log-box" id="logBox">{{ logs }}</div>
+  </div>
+</div>
+
+<div class="mt-3">
+  <label class="d-flex align-items-center gap-2 text-secondary" style="font-size:.875rem; cursor:pointer;">
+    <input type="checkbox" id="autoScroll" checked class="form-check-input">
+    自动滚动到底部
+  </label>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const logBox = document.getElementById('logBox');
+
+function scrollBottom() {
+  if (document.getElementById('autoScroll').checked) {
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+}
+
+function refreshLogs() {
+  location.reload();
+}
+
+scrollBottom();
+
+// 每 5 秒自动刷新
+setInterval(() => {
+  if (document.getElementById('autoScroll').checked) refreshLogs();
+}, 5000);
+</script>
+{% endblock %}

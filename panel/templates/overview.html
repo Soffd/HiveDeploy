@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}多服务器总览 — Bot Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="mb-0 fw-semibold"><i class="bi bi-globe me-2"></i>多服务器总览</h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;">实时汇聚所有节点数据</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <small class="text-secondary" id="lastUpdate"></small>
+    <button class="btn btn-sm btn-outline-secondary" onclick="loadData()">
+      <i class="bi bi-arrow-clockwise me-1"></i>刷新
+    </button>
+  </div>
+</div>
+
+<div id="nodesContainer">
+  <div class="text-center py-5 text-secondary">
+    <div class="spinner-border spinner-border-sm me-2"></div>加载中...
+  </div>
+</div>
+
+{# 实例明细弹窗 #}
+<div class="modal fade" id="instanceModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" style="background:#161b22; border:1px solid #30363d;">
+      <div class="modal-header border-0 pb-1">
+        <h6 class="modal-title" id="instanceModalTitle">实例列表</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-0" id="instanceModalBody"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fmtBytes(b){if(!b)return'0';if(b>1e9)return(b/1e9).toFixed(1)+'GB';return(b/1e6).toFixed(0)+'MB';}
+
+function statusBadge(s){
+  const m={running:'success',exited:'secondary',not_found:'dark',error:'danger',unknown:'secondary'};
+  return `<span class="badge bg-${m[s]||'secondary'}">${s}</span>`;
+}
+
+function renderNode(node){
+  const err=node.error?`<div class="alert alert-danger py-1 px-2 mt-2 mb-0" style="font-size:.78rem;">${node.error}</div>`:'';
+  const cpuCls=node.cpu_percent>80?'bg-danger':node.cpu_percent>60?'bg-warning':'bg-info';
+  const memCls=node.mem_percent>85?'bg-danger':node.mem_percent>65?'bg-warning':'bg-success';
+
+  return `
+  <div class="col-md-6 col-xl-4">
+    <div class="card h-100" style="border-color:${node.error?'#f78166':'#30363d'}">
+      <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+        <div>
+          <span class="fw-semibold">${node.name}</span>
+          <a href="${node.url}" target="_blank" class="ms-2 text-secondary" style="font-size:.75rem;">
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+        </div>
+        <span class="badge ${node.error?'bg-danger':'bg-success'}" style="font-size:.7rem;">
+          ${node.error?'离线':'在线'}
+        </span>
+      </div>
+      <div class="card-body py-2">
+        ${err}
+        <div class="row g-2 mb-2">
+          <div class="col-6 text-center p-2" style="background:#0d1117; border-radius:8px;">
+            <div style="font-size:1.4rem; font-weight:700; color:#58a6ff;">${node.user_count}</div>
+            <div class="text-secondary" style="font-size:.75rem;">用户数</div>
+          </div>
+          <div class="col-6 text-center p-2" style="background:#0d1117; border-radius:8px;">
+            <div style="font-size:1.4rem; font-weight:700; color:#3fb950;">${node.instance_count}</div>
+            <div class="text-secondary" style="font-size:.75rem;">实例数</div>
+          </div>
+        </div>
+        <div class="mb-1">
+          <div class="d-flex justify-content-between mb-1" style="font-size:.75rem;">
+            <span class="text-secondary">CPU</span>
+            <span>${node.cpu_percent.toFixed(1)}%</span>
+          </div>
+          <div class="progress" style="height:5px; background:#21262d;">
+            <div class="progress-bar ${cpuCls}" style="width:${node.cpu_percent}%"></div>
+          </div>
+        </div>
+        <div class="mb-2">
+          <div class="d-flex justify-content-between mb-1" style="font-size:.75rem;">
+            <span class="text-secondary">内存</span>
+            <span>${node.mem_percent.toFixed(1)}%</span>
+          </div>
+          <div class="progress" style="height:5px; background:#21262d;">
+            <div class="progress-bar ${memCls}" style="width:${node.mem_percent}%"></div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary w-100" style="font-size:.78rem;"
+                onclick='showInstances(${JSON.stringify(node)})'>
+          <i class="bi bi-list-ul me-1"></i>查看实例列表
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function showInstances(node){
+  document.getElementById('instanceModalTitle').textContent=node.name+' — 实例列表';
+  const insts=node.instances||[];
+  if(!insts.length){
+    document.getElementById('instanceModalBody').innerHTML='<p class="text-secondary text-center py-3">暂无实例</p>';
+  } else {
+    let rows=insts.map(i=>`
+      <tr>
+        <td class="px-3 py-2 fw-semibold">${i.username}</td>
+        <td>${statusBadge(i.astrbot)}</td>
+        <td>${statusBadge(i.napcat)}</td>
+        <td class="text-secondary" style="font-size:.8rem;">${i.expire_at||'永久'}</td>
+      </tr>`).join('');
+    document.getElementById('instanceModalBody').innerHTML=`
+      <div class="table-responsive">
+        <table class="table table-dark mb-0" style="font-size:.875rem;">
+          <thead style="border-bottom:1px solid #30363d;">
+            <tr>
+              <th class="px-3 py-2 text-secondary fw-normal">用户名</th>
+              <th class="py-2 text-secondary fw-normal">AstrBot</th>
+              <th class="py-2 text-secondary fw-normal">NapCat</th>
+              <th class="py-2 text-secondary fw-normal">到期时间</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+  new bootstrap.Modal(document.getElementById('instanceModal')).show();
+}
+
+async function loadData(){
+  try{
+    const r=await fetch('/api/aggregate_nodes');
+    const nodes=await r.json();
+    const container=document.getElementById('nodesContainer');
+    if(!nodes.length){
+      container.innerHTML='<div class="text-center text-secondary py-5">暂无节点数据</div>';
+      return;
+    }
+    // 汇总行
+    const totalUsers=nodes.reduce((s,n)=>s+n.user_count,0);
+    const totalInst=nodes.reduce((s,n)=>s+n.instance_count,0);
+    const online=nodes.filter(n=>!n.error).length;
+    const summary=`
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3"><div class="card text-center py-3">
+        <div style="font-size:1.8rem;font-weight:700;color:#58a6ff;">${nodes.length}</div>
+        <div class="text-secondary small">节点总数</div>
+      </div></div>
+      <div class="col-6 col-md-3"><div class="card text-center py-3">
+        <div style="font-size:1.8rem;font-weight:700;color:#3fb950;">${online}</div>
+        <div class="text-secondary small">在线节点</div>
+      </div></div>
+      <div class="col-6 col-md-3"><div class="card text-center py-3">
+        <div style="font-size:1.8rem;font-weight:700;color:#d29922;">${totalUsers}</div>
+        <div class="text-secondary small">总用户数</div>
+      </div></div>
+      <div class="col-6 col-md-3"><div class="card text-center py-3">
+        <div style="font-size:1.8rem;font-weight:700;color:#f78166;">${totalInst}</div>
+        <div class="text-secondary small">总实例数</div>
+      </div></div>
+    </div>`;
+    const cards='<div class="row g-3">'+nodes.map(renderNode).join('')+'</div>';
+    container.innerHTML=summary+cards;
+    document.getElementById('lastUpdate').textContent='更新于 '+new Date().toLocaleTimeString();
+  }catch(e){
+    document.getElementById('nodesContainer').innerHTML=
+      `<div class="alert alert-danger">加载失败: ${e.message}</div>`;
+  }
+}
+
+loadData();
+setInterval(loadData, 30000);
+</script>
+{% endblock %}

@@ -1,1 +1,329 @@
+{% extends "base.html" %}
+{% block title %}管理后台 — Bot Platform{% endblock %}
 
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-semibold"><i class="bi bi-shield-lock me-2"></i>管理后台</h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;">平台状态总览</p>
+  </div>
+</div>
+
+{% if request.query_params.get('reset') %}<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i>密码已重置为 123456</div>{% endif %}
+{% if request.query_params.get('created') %}<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i>用户创建成功</div>{% endif %}
+{% if request.query_params.get('error') %}<div class="alert alert-danger py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-exclamation-triangle me-1"></i>{{ request.query_params.get('error') }}</div>{% endif %}
+
+{# 服务器监控 #}
+<div class="card mb-4">
+  <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+    <small class="fw-semibold text-secondary"><i class="bi bi-bar-chart-line me-1"></i>服务器状态</small>
+    <small class="text-secondary" id="statsTime" style="font-size:.75rem;"></small>
+  </div>
+  <div class="card-body py-2">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+          <span class="text-secondary">CPU</span><span id="cpuVal">--</span>
+        </div>
+        <div class="progress" style="height:6px; background:#21262d;">
+          <div id="cpuBar" class="progress-bar bg-info" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+          <span class="text-secondary">内存</span><span id="memVal">--</span>
+        </div>
+        <div class="progress" style="height:6px; background:#21262d;">
+          <div id="memBar" class="progress-bar bg-success" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+          <span class="text-secondary">磁盘</span><span id="diskVal">--</span>
+        </div>
+        <div class="progress" style="height:6px; background:#21262d;">
+          <div id="diskBar" class="progress-bar bg-warning" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# 创建用户 #}
+<div class="card mb-4">
+  <div class="card-header py-2 px-3">
+    <small class="fw-semibold text-secondary"><i class="bi bi-person-plus me-1"></i>创建新用户</small>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/admin/user/create" class="row g-3 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label text-secondary" style="font-size:.8rem;">用户名</label>
+        <input type="text" class="form-control form-control-sm" name="username" required
+               style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label text-secondary" style="font-size:.8rem;">邮箱</label>
+        <input type="email" class="form-control form-control-sm" name="email" required
+               style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label text-secondary" style="font-size:.8rem;">初始密码</label>
+        <input type="text" class="form-control form-control-sm" name="password" required
+               style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label text-secondary" style="font-size:.8rem;">有效天数（留空=永久）</label>
+        <input type="number" class="form-control form-control-sm" name="expire_days" min="1"
+               placeholder="如：30"
+               style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+      </div>
+      <div class="col-md-1 pt-3">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="is_admin" id="isAdminCheck">
+          <label class="form-check-label text-secondary" for="isAdminCheck" style="font-size:.8rem;">管理员</label>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-success btn-sm w-100">
+          <i class="bi bi-person-plus me-1"></i>创建用户
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# 统计卡片 #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:1.8rem; font-weight:700; color:#58a6ff;">{{ users|length }}</div>
+      <div class="text-secondary small">注册用户</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:1.8rem; font-weight:700; color:#3fb950;">{{ instance_data|length }}</div>
+      <div class="text-secondary small">运行实例</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:1.8rem; font-weight:700; color:#d29922;">
+        {{ astrbot_running }}
+      </div>
+      <div class="text-secondary small">运行中 AstrBot</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:1.8rem; font-weight:700; color:#f78166;">
+        {{ napcat_running }}
+      </div>
+      <div class="text-secondary small">运行中 NapCat</div>
+    </div>
+  </div>
+</div>
+
+{# 实例列表 #}
+<div class="card mb-4">
+  <div class="card-header py-2 px-3">
+    <small class="fw-semibold text-secondary"><i class="bi bi-grid me-1"></i>所有实例</small>
+  </div>
+  {% if instance_data %}
+  <div class="table-responsive">
+    <table class="table table-dark table-hover mb-0" style="font-size:.875rem;">
+      <thead style="border-bottom:1px solid #30363d;">
+        <tr>
+          <th class="px-3 py-2 text-secondary fw-normal">用户</th>
+          <th class="py-2 text-secondary fw-normal">AstrBot</th>
+          <th class="py-2 text-secondary fw-normal">NapCat</th>
+          <th class="py-2 text-secondary fw-normal">端口</th>
+          <th class="py-2 text-secondary fw-normal">创建时间</th>
+          <th class="py-2 text-secondary fw-normal">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in instance_data %}
+        <tr>
+          <td class="px-3 py-2"><span class="fw-semibold">{{ item.username }}</span></td>
+          <td class="py-2"><span class="badge bg-{{ status_badge(item.status.get('astrbot','unknown')) }}">{{ item.status.get('astrbot','—') }}</span></td>
+          <td class="py-2"><span class="badge bg-{{ status_badge(item.status.get('napcat','unknown')) }}">{{ item.status.get('napcat','—') }}</span></td>
+          <td class="py-2">
+            <div class="d-flex flex-column gap-1">
+              <span class="tag-pill">AB :{{ item.instance.astrbot_port }}</span>
+              <span class="tag-pill">NC :{{ item.instance.napcat_web_port }}</span>
+            </div>
+          </td>
+          <td class="py-2 text-secondary">{{ item.instance.created_at.strftime('%Y-%m-%d %H:%M') if item.instance.created_at else '—' }}</td>
+          <td class="py-2">
+            <div class="d-flex gap-1">
+              <form method="post" action="/admin/instance/{{ item.instance.user_id }}/restart">
+                <button class="btn btn-sm btn-outline-secondary" title="重启"><i class="bi bi-arrow-clockwise"></i></button>
+              </form>
+              <a href="http://{{ host }}:{{ item.instance.astrbot_port }}" target="_blank"
+                 class="btn btn-sm btn-outline-primary" title="AstrBot"><i class="bi bi-box-arrow-up-right"></i></a>
+              <a href="http://{{ host }}:{{ item.instance.napcat_web_port }}" target="_blank"
+                 class="btn btn-sm btn-outline-danger" title="NapCat"><i class="bi bi-chat-dots"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-center text-secondary py-4">暂无实例</div>
+  {% endif %}
+</div>
+
+{# 用户管理 #}
+<div class="card">
+  <div class="card-header py-2 px-3">
+    <small class="fw-semibold text-secondary"><i class="bi bi-people me-1"></i>用户管理</small>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-dark table-hover mb-0" style="font-size:.875rem;">
+      <thead style="border-bottom:1px solid #30363d;">
+        <tr>
+          <th class="px-3 py-2 text-secondary fw-normal">ID</th>
+          <th class="py-2 text-secondary fw-normal">用户名</th>
+          <th class="py-2 text-secondary fw-normal">邮箱</th>
+          <th class="py-2 text-secondary fw-normal">状态</th>
+          <th class="py-2 text-secondary fw-normal">角色</th>
+          <th class="py-2 text-secondary fw-normal">到期时间</th>
+          <th class="py-2 text-secondary fw-normal">注册时间</th>
+          <th class="py-2 text-secondary fw-normal">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="px-3 py-2 text-secondary">{{ u.id }}</td>
+          <td class="py-2 fw-semibold">{{ u.username }}</td>
+          <td class="py-2 text-secondary">{{ u.email }}</td>
+          <td class="py-2">
+            <span class="badge bg-{{ 'success' if u.is_active else 'secondary' }}">{{ '启用' if u.is_active else '禁用' }}</span>
+          </td>
+          <td class="py-2">
+            {% if u.is_admin %}<span class="badge bg-warning text-dark">管理员</span>
+            {% else %}<span class="text-secondary">普通用户</span>{% endif %}
+          </td>
+          <td class="py-2">
+            {% set days_left = days_until_expire(u) %}
+            {% if u.expire_at %}
+              {% if days_left <= 0 %}
+              <span class="badge bg-danger">已到期</span>
+              {% elif days_left <= 7 %}
+              <span class="badge bg-warning text-dark">{{ u.expire_at.strftime('%Y-%m-%d') }} ({{ days_left }}天)</span>
+              {% else %}
+              <span class="text-secondary" style="font-size:.8rem;">{{ u.expire_at.strftime('%Y-%m-%d') }}</span>
+              {% endif %}
+            {% else %}
+              <span class="text-secondary" style="font-size:.75rem;">永久</span>
+            {% endif %}
+            {% if not u.is_admin %}
+            <button class="btn btn-sm btn-link p-0 ms-1" title="设置到期时间"
+                    data-uid="{{ u.id }}"
+                    data-uname="{{ u.username }}"
+                    data-expire="{{ u.expire_at.strftime('%Y-%m-%d') if u.expire_at else '' }}"
+                    onclick="openExpireModal(this)">
+              <i class="bi bi-calendar3" style="color:#58a6ff;"></i>
+            </button>
+            {% endif %}
+          </td>
+          <td class="py-2 text-secondary">{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '—' }}</td>
+          <td class="py-2">
+            <div class="d-flex gap-1">
+              {% if not u.is_admin %}
+              <form method="post" action="/admin/user/{{ u.id }}/toggle">
+                <button class="btn btn-sm btn-outline-{{ 'warning' if u.is_active else 'success' }}">{{ '禁用' if u.is_active else '启用' }}</button>
+              </form>
+              <form method="post" action="/admin/user/{{ u.id }}/reset_password"
+                    onsubmit="return confirm('将 {{ u.username }} 的密码重置为 123456？')">
+                <button class="btn btn-sm btn-outline-warning" title="重置密码"><i class="bi bi-key"></i></button>
+              </form>
+              <form method="post" action="/admin/user/{{ u.id }}/delete"
+                    onsubmit="return confirm('确定要删除用户 {{ u.username }} 及其所有实例？')">
+                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i></button>
+              </form>
+              {% else %}
+              <span class="text-secondary small">—</span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# 到期时间弹窗 #}
+<div class="modal fade" id="expireModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content" style="background:#161b22; border:1px solid #30363d;">
+      <div class="modal-header border-0">
+        <h6 class="modal-title">设置到期时间 — <span id="expireUsername"></span></h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-0">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button class="btn btn-sm btn-outline-info" onclick="setExpire('add30')">+30天</button>
+          <button class="btn btn-sm btn-outline-info" onclick="setExpire('add90')">+90天</button>
+          <button class="btn btn-sm btn-outline-info" onclick="setExpire('add365')">+1年</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="setExpire('clear')">清除（永久）</button>
+        </div>
+        <label class="text-secondary" style="font-size:.8rem;">指定日期</label>
+        <div class="d-flex gap-2 mt-1">
+          <input type="date" id="expireDate" class="form-control form-control-sm"
+                 style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+          <button class="btn btn-sm btn-success" onclick="setExpire('set')">设置</button>
+        </div>
+        <div id="expireMsg" class="mt-2 text-secondary" style="font-size:.8rem;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fmtBytes(b){if(b>1e9)return(b/1e9).toFixed(1)+'GB';return(b/1e6).toFixed(0)+'MB';}
+async function fetchStats(){
+  try{
+    const d=await(await fetch('/api/server/stats')).json();
+    document.getElementById('cpuVal').textContent=d.cpu_percent.toFixed(1)+'%';
+    document.getElementById('cpuBar').style.width=d.cpu_percent+'%';
+    document.getElementById('memVal').textContent=fmtBytes(d.mem_used)+'/'+fmtBytes(d.mem_total)+' '+d.mem_percent.toFixed(0)+'%';
+    document.getElementById('memBar').style.width=d.mem_percent+'%';
+    document.getElementById('diskVal').textContent=fmtBytes(d.disk_used)+'/'+fmtBytes(d.disk_total)+' '+d.disk_percent.toFixed(0)+'%';
+    document.getElementById('diskBar').style.width=d.disk_percent+'%';
+    document.getElementById('statsTime').textContent='更新于 '+new Date().toLocaleTimeString();
+  }catch(e){}
+}
+fetchStats(); setInterval(fetchStats,5000);
+
+let _expireUserId=null;
+function openExpireModal(btn){
+  _expireUserId = btn.dataset.uid;
+  document.getElementById('expireUsername').textContent = btn.dataset.uname;
+  document.getElementById('expireDate').value = btn.dataset.expire || '';
+  document.getElementById('expireMsg').textContent = '';
+  new bootstrap.Modal(document.getElementById('expireModal')).show();
+}
+async function setExpire(action){
+  if(!_expireUserId)return;
+  const body={action};
+  if(action==='set') body.date=document.getElementById('expireDate').value;
+  const r=await fetch(`/admin/user/${_expireUserId}/set_expire`,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body),
+  });
+  const d=await r.json();
+  if(d.ok){
+    document.getElementById('expireMsg').innerHTML=
+      '<span class="text-success">✅ 已更新：'+(d.expire_at||'永久')+'，刷新页面生效</span>';
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+{% block title %}控制台 — Bot Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-semibold">我的实例</h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;">
+      <i class="bi bi-person me-1"></i>{{ user.username }}
+    </p>
+  </div>
+</div>
+
+{# 到期提示横幅 #}
+{% if instance %}
+  {% set expired = user_expired(user) %}
+  {% set days_left = days_until_expire(user) %}
+  {% if expired %}
+  <div class="alert alert-danger py-2 mb-3" style="font-size:.875rem;">
+    <i class="bi bi-exclamation-octagon me-1"></i>
+    您的账号已于 <strong>{{ user.expire_at.strftime('%Y-%m-%d') }}</strong> 到期，面板访问已被暂停。请联系管理员续期。
+  </div>
+  {% elif days_left is not none and days_left <= 7 %}
+  <div class="alert alert-warning py-2 mb-3" style="font-size:.875rem;">
+    <i class="bi bi-clock-history me-1"></i>
+    您的账号将于 <strong>{{ user.expire_at.strftime('%Y-%m-%d') }}</strong> 到期（剩余 <strong>{{ days_left }}</strong> 天），请及时联系管理员续期。
+  </div>
+  {% endif %}
+{% endif %}
+
+{# 服务器状态 #}
+<div class="card mb-4" id="serverStatsCard">
+  <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+    <small class="fw-semibold text-secondary"><i class="bi bi-bar-chart-line me-1"></i>服务器状态</small>
+    <small class="text-secondary" id="statsUpdateTime" style="font-size:.75rem;"></small>
+  </div>
+  <div class="card-body py-2">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+          <span class="text-secondary">CPU</span>
+          <span id="cpuVal">--</span>
+        </div>
+        <div class="progress" style="height:6px; background:#21262d;">
+          <div id="cpuBar" class="progress-bar bg-info" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+          <span class="text-secondary">内存</span>
+          <span id="memVal">--</span>
+        </div>
+        <div class="progress" style="height:6px; background:#21262d;">
+          <div id="memBar" class="progress-bar bg-success" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+          <span class="text-secondary">磁盘</span>
+          <span id="diskVal">--</span>
+        </div>
+        <div class="progress" style="height:6px; background:#21262d;">
+          <div id="diskBar" class="progress-bar bg-warning" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# 无实例 #}
+{% if not instance %}
+<div class="card text-center py-5">
+  <div class="card-body">
+    <div style="font-size:3rem; margin-bottom:1rem;">🤖</div>
+    <h5 class="mb-2">还没有实例</h5>
+    <p class="text-secondary mb-4" style="font-size:.9rem; max-width:460px; margin:0 auto .75rem;">
+      点击下方按钮，平台将自动为你创建一个独立的 <strong>AstrBot</strong> + <strong>NapCat</strong> 容器组合。
+    </p>
+    <button class="btn btn-success btn-action px-4" id="createBtn" onclick="startCreate()">
+      <i class="bi bi-plus-circle me-2"></i>创建我的实例
+    </button>
+    <div id="progressBox" class="mt-3 d-none">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <div class="spinner-border spinner-border-sm text-success"></div>
+        <span id="progressStep" class="text-secondary" style="font-size:.875rem;">初始化中...</span>
+      </div>
+      <div id="progressDetail" class="text-secondary" style="font-size:.78rem; font-family:monospace;"></div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+{% set ab_status = container_status.get('astrbot', 'unknown') %}
+{% set nc_status = container_status.get('napcat', 'unknown') %}
+{% set expired = user_expired(user) %}
+
+{# 状态卡片 #}
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="text-secondary small"><i class="bi bi-stars me-1"></i>AstrBot</span>
+          <span class="badge bg-{{ status_badge(ab_status) }}">{{ ab_status }}</span>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="port-badge">
+            {{ host }}:{{ instance.astrbot_port }}
+            <i class="bi bi-copy ms-1 port-copy" onclick="copyText('{{ host }}:{{ instance.astrbot_port }}')"></i>
+          </span>
+        </div>
+        {% if not expired %}
+        <a href="http://{{ host }}:{{ instance.astrbot_port }}" target="_blank"
+           class="btn btn-sm btn-outline-primary btn-action">
+          <i class="bi bi-box-arrow-up-right me-1"></i>打开面板
+        </a>
+        {% endif %}
+        <a href="/logs/astrbot" class="btn btn-sm btn-outline-secondary btn-action ms-1">
+          <i class="bi bi-terminal me-1"></i>日志
+        </a>
+        <a href="/terminal/astrbot" class="btn btn-sm btn-outline-info btn-action ms-1">
+          <i class="bi bi-code-square me-1"></i>终端
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card stat-card h-100" style="border-left-color:#f78166;">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="text-secondary small"><i class="bi bi-chat-dots me-1"></i>NapCat</span>
+          <span class="badge bg-{{ status_badge(nc_status) }}">{{ nc_status }}</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <span class="port-badge">
+            WebUI {{ host }}:{{ instance.napcat_web_port }}
+            <i class="bi bi-copy ms-1 port-copy" onclick="copyText('{{ host }}:{{ instance.napcat_web_port }}')"></i>
+          </span>
+          <span class="port-badge">
+            WS ws://{{ host }}:{{ instance.napcat_ws_port }}
+            <i class="bi bi-copy ms-1 port-copy" onclick="copyText('ws://{{ host }}:{{ instance.napcat_ws_port }}')"></i>
+          </span>
+        </div>
+        {% if not expired %}
+        <a href="http://{{ host }}:{{ instance.napcat_web_port }}" target="_blank"
+           class="btn btn-sm btn-outline-danger btn-action">
+          <i class="bi bi-box-arrow-up-right me-1"></i>打开面板
+        </a>
+        {% endif %}
+        <a href="/logs/napcat" class="btn btn-sm btn-outline-secondary btn-action ms-1">
+          <i class="bi bi-terminal me-1"></i>日志
+        </a>
+        <a href="/terminal/napcat" class="btn btn-sm btn-outline-info btn-action ms-1">
+          <i class="bi bi-code-square me-1"></i>终端
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# 连接信息 #}
+<div class="card mb-4">
+  <div class="card-header py-2 px-3">
+    <small class="fw-semibold text-secondary"><i class="bi bi-plug me-1"></i>连接配置</small>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <h6 class="text-secondary mb-2" style="font-size:.8rem; text-transform:uppercase;">AstrBot → NapCat（内部）</h6>
+        <p class="text-secondary mb-1" style="font-size:.82rem;">NapCat 内配置反向 WS 地址：</p>
+        <code class="d-block p-2 rounded" style="background:#010409; font-size:.82rem;">
+          ws://astrbot_{{ user.username }}:6199
+        </code>
+      </div>
+      <div class="col-md-6">
+        <h6 class="text-secondary mb-2" style="font-size:.8rem; text-transform:uppercase;">外部 WebSocket</h6>
+        <code class="d-block p-2 rounded" style="background:#010409; font-size:.82rem;">
+          ws://{{ host }}:{{ instance.napcat_ws_port }}
+        </code>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# 弹性端口 #}
+<div class="card mb-4">
+  <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between"
+       style="cursor:pointer;" onclick="togglePorts()">
+    <small class="fw-semibold text-secondary">
+      <i class="bi bi-diagram-2 me-1"></i>弹性端口配置
+      <span class="badge bg-secondary ms-2" style="font-size:.7rem;" id="portCount">
+        {{ extra_ports|length }} 个映射
+      </span>
+    </small>
+    <i class="bi bi-chevron-down text-secondary" id="portChevron"></i>
+  </div>
+  <div id="portsPanel" class="d-none">
+    <div class="card-body">
+      <p class="text-secondary mb-3" style="font-size:.82rem;">
+        为插件 WebUI 或自定义服务分配额外端口。可用端口池：
+        <code>{{ available_extra_ports | join(', ') }}</code>
+      </p>
+      <div id="portRows">
+        {% for ep in extra_ports %}
+        <div class="row g-2 mb-2 align-items-center port-row">
+          <div class="col-3">
+            <select class="form-select form-select-sm port-service"
+                    style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+              <option value="astrbot" {% if ep.service=='astrbot' %}selected{% endif %}>AstrBot</option>
+              <option value="napcat"  {% if ep.service=='napcat'  %}selected{% endif %}>NapCat</option>
+            </select>
+          </div>
+          <div class="col-3">
+            <input type="number" class="form-control form-control-sm port-container"
+                   placeholder="容器端口" value="{{ ep.container_port }}"
+                   style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+          </div>
+          <div class="col-3">
+            <select class="form-select form-select-sm port-host"
+                    style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+              {% for p in available_extra_ports %}
+              <option value="{{ p }}" {% if ep.host_port == p %}selected{% endif %}>{{ p }}</option>
+              {% endfor %}
+              <option value="{{ ep.host_port }}" {% if ep.host_port not in available_extra_ports %}selected{% endif %}>{{ ep.host_port }}</option>
+            </select>
+          </div>
+          <div class="col-2">
+            <input type="text" class="form-control form-control-sm port-label"
+                   placeholder="备注" value="{{ ep.label or '' }}"
+                   style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+          </div>
+          <div class="col-1">
+            <button class="btn btn-sm btn-outline-danger" onclick="this.closest('.port-row').remove()">
+              <i class="bi bi-trash3"></i>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="d-flex gap-2 mt-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="addPortRow()">
+          <i class="bi bi-plus me-1"></i>添加端口
+        </button>
+        <button class="btn btn-sm btn-success" id="savePortsBtn" onclick="savePorts()">
+          <i class="bi bi-floppy me-1"></i>保存并重建容器
+        </button>
+      </div>
+      <div id="portsMsg" class="mt-2 d-none" style="font-size:.82rem;"></div>
+    </div>
+  </div>
+</div>
+
+{# 实例管理 #}
+<div class="card">
+  <div class="card-header py-2 px-3">
+    <small class="fw-semibold text-secondary"><i class="bi bi-sliders me-1"></i>实例管理</small>
+  </div>
+  <div class="card-body d-flex flex-wrap gap-2">
+    <form method="post" action="/api/instance/start">
+      <button class="btn btn-success btn-action" {% if ab_status == 'running' %}disabled{% endif %}>
+        <i class="bi bi-play-fill me-1"></i>启动
+      </button>
+    </form>
+    <form method="post" action="/api/instance/stop">
+      <button class="btn btn-warning btn-action" {% if ab_status != 'running' %}disabled{% endif %}>
+        <i class="bi bi-stop-fill me-1"></i>停止
+      </button>
+    </form>
+    <form method="post" action="/api/instance/restart">
+      <button class="btn btn-secondary btn-action">
+        <i class="bi bi-arrow-clockwise me-1"></i>重启
+      </button>
+    </form>
+
+    {# 更新按钮组 #}
+    <div class="dropdown">
+      <button class="btn btn-info btn-action dropdown-toggle" id="updateDropBtn"
+              data-bs-toggle="dropdown">
+        <i class="bi bi-cloud-download me-1"></i>更新镜像
+      </button>
+      <ul class="dropdown-menu dropdown-menu-dark" style="background:#161b22; border-color:#30363d;">
+        <li><a class="dropdown-item" href="#" onclick="startUpdate('both')">
+          <i class="bi bi-arrow-repeat me-1"></i>全部更新
+        </a></li>
+        <li><hr class="dropdown-divider" style="border-color:#30363d;"></li>
+        <li><a class="dropdown-item" href="#" onclick="startUpdate('astrbot')">
+          仅更新 AstrBot
+        </a></li>
+        <li><a class="dropdown-item" href="#" onclick="startUpdate('napcat')">
+          仅更新 NapCat
+        </a></li>
+      </ul>
+    </div>
+
+    <form method="post" action="/api/instance/delete"
+          onsubmit="return confirm('确定要删除实例？容器将被销毁（数据目录保留）')">
+      <button class="btn btn-outline-danger btn-action">
+        <i class="bi bi-trash3 me-1"></i>删除实例
+      </button>
+    </form>
+  </div>
+  <div id="updateProgressBox" class="card-body border-top d-none" style="border-color:#30363d!important;">
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <div class="spinner-border spinner-border-sm text-info" id="updateSpinner"></div>
+      <span id="updateStep" class="text-secondary" style="font-size:.875rem;"></span>
+    </div>
+    <div id="updateDetail" class="text-secondary ms-4" style="font-size:.78rem; font-family:monospace;"></div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 服务器监控
+function fmtBytes(b){if(b>1e9)return(b/1e9).toFixed(1)+'GB';return(b/1e6).toFixed(0)+'MB';}
+async function fetchStats(){
+  try{
+    const d=await(await fetch('/api/server/stats')).json();
+    document.getElementById('cpuVal').textContent=d.cpu_percent.toFixed(1)+'%';
+    document.getElementById('cpuBar').style.width=d.cpu_percent+'%';
+    document.getElementById('memVal').textContent=fmtBytes(d.mem_used)+'/'+fmtBytes(d.mem_total)+' '+d.mem_percent.toFixed(0)+'%';
+    document.getElementById('memBar').style.width=d.mem_percent+'%';
+    document.getElementById('diskVal').textContent=fmtBytes(d.disk_used)+'/'+fmtBytes(d.disk_total)+' '+d.disk_percent.toFixed(0)+'%';
+    document.getElementById('diskBar').style.width=d.disk_percent+'%';
+    document.getElementById('statsUpdateTime').textContent='更新于 '+new Date().toLocaleTimeString();
+  }catch(e){}
+}
+fetchStats(); setInterval(fetchStats,5000);
+
+// 实例创建
+let _pt=null;
+async function startCreate(){
+  document.getElementById('createBtn').disabled=true;
+  document.getElementById('progressBox').classList.remove('d-none');
+  await fetch('/api/instance/create',{method:'POST'});
+  _pt=setInterval(pollProgress,1500);
+}
+async function pollProgress(){
+  const d=await(await fetch('/api/instance/progress')).json();
+  if(!d.step)return;
+  document.getElementById('progressStep').textContent=d.step;
+  document.getElementById('progressDetail').textContent=d.detail||'';
+  if(d.done){clearInterval(_pt);document.getElementById('progressStep').textContent='✅ 创建完成，正在刷新...';setTimeout(()=>location.reload(),1500);}
+  if(d.error){clearInterval(_pt);document.getElementById('progressStep').innerHTML='❌ 创建失败：'+d.error;document.getElementById('createBtn').disabled=false;}
+}
+
+// 弹性端口
+function togglePorts(){
+  const p=document.getElementById('portsPanel');
+  const c=document.getElementById('portChevron');
+  p.classList.toggle('d-none');
+  c.className=p.classList.contains('d-none')?'bi bi-chevron-down text-secondary':'bi bi-chevron-up text-secondary';
+}
+const availPorts={{ available_extra_ports | tojson if available_extra_ports else '[]' }};
+function addPortRow(){
+  const row=document.createElement('div');
+  row.className='row g-2 mb-2 align-items-center port-row';
+  const opts=availPorts.map(p=>`<option value="${p}">${p}</option>`).join('');
+  row.innerHTML=`
+    <div class="col-3"><select class="form-select form-select-sm port-service" style="background:#0d1117;border-color:#30363d;color:#e6edf3;"><option value="astrbot">AstrBot</option><option value="napcat">NapCat</option></select></div>
+    <div class="col-3"><input type="number" class="form-control form-control-sm port-container" placeholder="容器端口" style="background:#0d1117;border-color:#30363d;color:#e6edf3;"></div>
+    <div class="col-3"><select class="form-select form-select-sm port-host" style="background:#0d1117;border-color:#30363d;color:#e6edf3;">${opts}</select></div>
+    <div class="col-2"><input type="text" class="form-control form-control-sm port-label" placeholder="备注" style="background:#0d1117;border-color:#30363d;color:#e6edf3;"></div>
+    <div class="col-1"><button class="btn btn-sm btn-outline-danger" onclick="this.closest('.port-row').remove()"><i class="bi bi-trash3"></i></button></div>`;
+  document.getElementById('portRows').appendChild(row);
+}
+async function savePorts(){
+  const rows=[...document.querySelectorAll('.port-row')];
+  const mappings=rows.map(r=>({
+    service:r.querySelector('.port-service').value,
+    container_port:parseInt(r.querySelector('.port-container').value)||0,
+    host_port:parseInt(r.querySelector('.port-host').value),
+    label:r.querySelector('.port-label').value,
+  })).filter(m=>m.container_port>0);
+  const btn=document.getElementById('savePortsBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>保存中...';
+  const resp=await fetch('/api/instance/extra_ports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mappings})});
+  const d=await resp.json();
+  const msg=document.getElementById('portsMsg');
+  msg.classList.remove('d-none');
+  if(d.ok){msg.innerHTML='<span class="text-success">✅ 已保存，容器正在重建中...</span>';}
+  else{msg.innerHTML='<span class="text-danger">❌ '+d.error+'</span>';btn.disabled=false;btn.innerHTML='<i class="bi bi-floppy me-1"></i>保存并重建容器';}
+}
+
+// 镜像更新
+let _ut=null;
+async function startUpdate(target){
+  if(!confirm('将拉取最新镜像并重建容器（数据不会丢失），确定继续？'))return;
+  document.getElementById('updateProgressBox').classList.remove('d-none');
+  document.getElementById('updateSpinner').classList.remove('d-none');
+  let url='/api/instance/update',progressUrl='/api/instance/update_progress';
+  if(target!=='both'){url=`/api/instance/update/${target}`;progressUrl=`/api/instance/update_progress/${target}`;}
+  await fetch(url,{method:'POST'});
+  if(_ut)clearInterval(_ut);
+  _ut=setInterval(async()=>{
+    const p=await(await fetch(progressUrl)).json();
+    if(!p.step)return;
+    document.getElementById('updateStep').textContent=p.step;
+    document.getElementById('updateDetail').textContent=p.detail||'';
+    if(p.done){clearInterval(_ut);document.getElementById('updateSpinner').classList.add('d-none');document.getElementById('updateStep').textContent='✅ 更新完成，正在刷新...';setTimeout(()=>location.reload(),2000);}
+    if(p.error){clearInterval(_ut);document.getElementById('updateSpinner').classList.add('d-none');document.getElementById('updateStep').innerHTML='❌ '+p.error;}
+  },1500);
+}
+</script>
+{% endblock %}

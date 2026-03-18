@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}个人设置 — Bot Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <h4 class="fw-semibold mb-4"><i class="bi bi-person-gear me-2"></i>个人设置</h4>
+
+    <div class="card mb-3">
+      <div class="card-header py-2 px-3">
+        <small class="fw-semibold text-secondary">账号信息</small>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between py-1" style="font-size:.875rem;">
+          <span class="text-secondary">用户名</span>
+          <span class="fw-semibold">{{ user.username }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1" style="font-size:.875rem;">
+          <span class="text-secondary">邮箱</span>
+          <span>{{ user.email }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1" style="font-size:.875rem;">
+          <span class="text-secondary">角色</span>
+          {% if user.is_admin %}
+          <span class="badge bg-warning text-dark">管理员</span>
+          {% else %}
+          <span class="badge bg-secondary">普通用户</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header py-2 px-3">
+        <small class="fw-semibold text-secondary"><i class="bi bi-key me-1"></i>修改密码</small>
+      </div>
+      <div class="card-body">
+        {% if errors %}
+        <div class="alert alert-danger py-2 mb-3" style="font-size:.875rem;">
+          {% for e in errors %}
+          <div><i class="bi bi-exclamation-triangle me-1"></i>{{ e }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" action="/profile/password">
+          <div class="mb-3">
+            <label class="form-label text-secondary" style="font-size:.8rem;">当前密码</label>
+            <input type="password" class="form-control" name="old_password" required
+                   style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-secondary" style="font-size:.8rem;">新密码（至少 6 位）</label>
+            <input type="password" class="form-control" name="new_password" required minlength="6"
+                   style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+          </div>
+          <div class="mb-4">
+            <label class="form-label text-secondary" style="font-size:.8rem;">确认新密码</label>
+            <input type="password" class="form-control" name="new_password2" required
+                   style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+          </div>
+          <button type="submit" class="btn btn-success w-100">
+            <i class="bi bi-floppy me-1"></i>保存新密码
+          </button>
+        </form>
+        <p class="text-secondary mt-3 mb-0" style="font-size:.78rem;">
+          <i class="bi bi-info-circle me-1"></i>修改密码后需要重新登录
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

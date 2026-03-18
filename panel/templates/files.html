@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block title %}文件管理 — {{ service }} — Bot Platform{% endblock %}
+
+{% block head %}
+<style>
+.file-row:hover { background: rgba(88,166,255,.06); }
+.shortcut-btn { background:#161b22; border:1px solid #30363d; border-radius:8px;
+                padding:.35rem .75rem; font-size:.8rem; color:#8b949e;
+                cursor:pointer; transition:all .15s; text-decoration:none; display:block; }
+.shortcut-btn:hover { border-color:#58a6ff; color:#58a6ff; }
+#editor { width:100%; min-height:540px; background:#010409; color:#adbac7;
+          border:none; outline:none; padding:1.2rem;
+          font-family:'Cascadia Code','Fira Code','JetBrains Mono',monospace;
+          font-size:.83rem; resize:vertical; line-height:1.7; tab-size:2; }
+.path-bar { background:#0d1117; border:1px solid #30363d; border-radius:8px;
+            padding:.4rem .8rem; font-family:monospace; font-size:.83rem;
+            color:#58a6ff; word-break:break-all; }
+.entry-name { font-family: monospace; font-size:.875rem; }
+.upload-zone { border:2px dashed #30363d; border-radius:8px; padding:1.5rem;
+               text-align:center; cursor:pointer; transition:all .2s; }
+.upload-zone.drag-over { border-color:#58a6ff; background:rgba(88,166,255,.05); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h4 class="mb-0 fw-semibold"><i class="bi bi-folder2-open me-2"></i>文件管理</h4>
+    <div class="path-bar mt-2">{{ current_path }}</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/files/astrbot?path={{ astrbot_root }}"
+       class="btn btn-sm {% if service=='astrbot' %}btn-primary{% else %}btn-outline-primary{% endif %}">AstrBot</a>
+    <a href="/files/napcat?path={{ napcat_root }}"
+       class="btn btn-sm {% if service=='napcat' %}btn-danger{% else %}btn-outline-danger{% endif %}">NapCat</a>
+    <a href="/dashboard" class="btn btn-sm btn-outline-secondary">← 控制台</a>
+  </div>
+</div>
+
+{% if saved %}<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i>文件已保存</div>{% endif %}
+{% if error_msg %}<div class="alert alert-danger py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-exclamation-triangle me-1"></i>{{ error_msg }}</div>{% endif %}
+
+<div class="row g-3">
+  <div class="col-md-2">
+    <div class="card h-100">
+      <div class="card-header py-2 px-3"><small class="text-secondary fw-semibold">快捷目录</small></div>
+      <div class="card-body p-2 d-flex flex-column gap-1">
+        {% for label, spath in shortcuts.items() %}
+        <a href="/files/{{ service }}?path={{ spath }}" class="shortcut-btn">{{ label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-10">
+    {% if not is_file %}
+    {# 目录浏览 #}
+    <div class="card mb-3">
+      <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+        <small class="fw-semibold text-secondary">
+          <i class="bi bi-folder me-1"></i>目录内容
+          <span class="text-secondary ms-2" style="font-weight:400;">{{ entries|length }} 项</span>
+        </small>
+        <div class="d-flex gap-2">
+          {% if parent_path %}
+          <a href="/files/{{ service }}?path={{ parent_path }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-up me-1"></i>上级
+          </a>
+          {% endif %}
+          <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#mkdirModal">
+            <i class="bi bi-folder-plus me-1"></i>新建目录
+          </button>
+          <button class="btn btn-sm btn-outline-info" onclick="toggleUpload()">
+            <i class="bi bi-upload me-1"></i>上传文件
+          </button>
+        </div>
+      </div>
+
+      {# 上传区域 #}
+      <div id="uploadZoneWrap" class="d-none card-body border-bottom" style="border-color:#30363d!important;">
+        <div class="upload-zone" id="uploadZone"
+             ondrop="handleDrop(event)" ondragover="e=>e.preventDefault()"
+             ondragenter="this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')"
+             onclick="document.getElementById('fileInput').click()">
+          <i class="bi bi-cloud-upload fs-3 text-secondary mb-2 d-block"></i>
+          <p class="text-secondary mb-1" style="font-size:.875rem;">拖拽文件到此处，或点击选择文件</p>
+          <input type="file" id="fileInput" multiple class="d-none" onchange="handleFiles(this.files)">
+        </div>
+        <div id="uploadList" class="mt-2"></div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-dark mb-0" style="font-size:.875rem;">
+          <thead style="border-bottom:1px solid #30363d;">
+            <tr>
+              <th class="px-3 py-2 text-secondary fw-normal">名称</th>
+              <th class="py-2 text-secondary fw-normal">大小</th>
+              <th class="py-2 text-secondary fw-normal">权限</th>
+              <th class="py-2 text-secondary fw-normal">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in entries %}
+            <tr class="file-row">
+              <td class="px-3 py-2">
+                {% if e.is_dir %}
+                <a href="/files/{{ service }}?path={{ e.full_path }}"
+                   style="color:#d29922; text-decoration:none;" class="entry-name">
+                  <i class="bi bi-folder-fill me-2"></i>{{ e.name }}
+                </a>
+                {% elif e.name | lower | regex_match('\.(json|yaml|yml|toml|ini|cfg|conf|py|js|md|txt|sh|env|log|xml|csv|html|css|properties)$') %}
+                <a href="/files/{{ service }}?path={{ e.full_path }}"
+                   style="color:#58a6ff; text-decoration:none;" class="entry-name">
+                  <i class="bi bi-file-earmark-code me-2"></i>{{ e.name }}
+                </a>
+                {% else %}
+                <span class="entry-name text-secondary">
+                  <i class="bi bi-file-earmark me-2"></i>{{ e.name }}
+                </span>
+                {% endif %}
+              </td>
+              <td class="py-2 text-secondary" style="font-family:monospace;">{{ e.size }}</td>
+              <td class="py-2 text-secondary" style="font-family:monospace; font-size:.75rem;">{{ e.perms }}</td>
+              <td class="py-2">
+                <div class="d-flex gap-1">
+                  {% if not e.is_dir %}
+                  <a href="/files/{{ service }}?path={{ e.full_path }}"
+                     class="btn btn-sm btn-outline-primary" title="编辑">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <a href="/files/{{ service }}/download?path={{ e.full_path }}"
+                     class="btn btn-sm btn-outline-secondary" title="下载">
+                    <i class="bi bi-download"></i>
+                  </a>
+                  {% endif %}
+                  <form method="post" action="/files/{{ service }}/delete" class="d-inline"
+                        onsubmit="return confirm('确定删除 {{ e.name }}？此操作不可撤销')">
+                    <input type="hidden" name="path" value="{{ e.full_path }}">
+                    <input type="hidden" name="return_path" value="{{ current_path }}">
+                    <button class="btn btn-sm btn-outline-danger" title="删除">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-secondary py-4">目录为空</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% else %}
+    {# 文件编辑器 #}
+    <div class="card">
+      <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+        <small class="fw-semibold">
+          <i class="bi bi-pencil-square me-1 text-secondary"></i>
+          <span style="font-family:monospace;">{{ filename }}</span>
+        </small>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" onclick="formatJSON()">
+            <i class="bi bi-braces me-1"></i>格式化 JSON
+          </button>
+          <button class="btn btn-sm btn-outline-info" onclick="wrapLines()">
+            <i class="bi bi-text-wrap me-1"></i>换行
+          </button>
+          <a href="/files/{{ service }}/download?path={{ current_path }}"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-download me-1"></i>下载
+          </a>
+          <a href="/files/{{ service }}?path={{ parent_path }}"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-x me-1"></i>取消
+          </a>
+          <button class="btn btn-sm btn-success"
+                  onclick="document.getElementById('saveForm').submit()">
+            <i class="bi bi-floppy me-1"></i>保存
+          </button>
+        </div>
+      </div>
+      <div>
+        <form id="saveForm" method="post" action="/files/{{ service }}/save">
+          <input type="hidden" name="path" value="{{ current_path }}">
+          <textarea id="editor" name="content" spellcheck="false">{{ file_content }}</textarea>
+        </form>
+      </div>
+      <div class="card-footer py-1 px-3 d-flex justify-content-between"
+           style="font-size:.75rem; color:#8b949e; background:#0d1117;">
+        <span id="cursorPos">行 1, 列 1</span>
+        <span id="charCount">{{ file_content | length }} 字符</span>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="modal fade" id="mkdirModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content" style="background:#161b22; border:1px solid #30363d;">
+      <div class="modal-header border-0">
+        <h6 class="modal-title">新建目录</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/files/{{ service }}/mkdir">
+        <div class="modal-body pt-0">
+          <input type="hidden" name="return_path" value="{{ current_path }}">
+          <input type="hidden" name="base_path" value="{{ current_path }}">
+          <input type="text" class="form-control" name="dirname" placeholder="目录名称" required
+                 style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="submit" class="btn btn-success btn-sm">创建</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SERVICE = '{{ service }}';
+const CURRENT_PATH = '{{ current_path }}';
+
+function toggleUpload(){
+  document.getElementById('uploadZoneWrap').classList.toggle('d-none');
+}
+
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+}
+
+async function handleFiles(files){
+  for(const file of files){
+    await uploadFile(file);
+  }
+}
+
+async function uploadFile(file){
+  const list=document.getElementById('uploadList');
+  const id='uf_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  const item=document.createElement('div');
+  item.id=id; item.className='d-flex align-items-center gap-2 mb-1';
+  item.style='font-size:.8rem;';
+  item.innerHTML=`<i class="bi bi-file-earmark text-secondary"></i><span class="text-secondary">${file.name}</span><span class="spinner-border spinner-border-sm text-info ms-auto"></span>`;
+  list.appendChild(item);
+
+  const fd=new FormData();
+  fd.append('upload_path', CURRENT_PATH);
+  fd.append('file', file);
+  try{
+    const r=await fetch(`/files/${SERVICE}/upload`,{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.ok){
+      item.innerHTML=`<i class="bi bi-check-circle text-success"></i><span class="text-secondary">${file.name}</span><span class="text-success ms-auto">上传成功</span>`;
+      setTimeout(()=>location.reload(),800);
+    } else {
+      item.innerHTML=`<i class="bi bi-x-circle text-danger"></i><span class="text-secondary">${file.name}</span><span class="text-danger ms-auto">${d.error}</span>`;
+    }
+  }catch(e){
+    item.innerHTML=`<i class="bi bi-x-circle text-danger"></i><span class="text-secondary">${file.name}</span><span class="text-danger ms-auto">上传失败</span>`;
+  }
+}
+
+function formatJSON(){
+  const ta=document.getElementById('editor');
+  if(!ta)return;
+  try{ta.value=JSON.stringify(JSON.parse(ta.value),null,2);}
+  catch(e){alert('不是有效的 JSON:\n'+e.message);}
+}
+function wrapLines(){
+  const ta=document.getElementById('editor');
+  if(!ta)return;
+  ta.style.whiteSpace=ta.style.whiteSpace==='nowrap'?'pre-wrap':'nowrap';
+  ta.style.overflowX=ta.style.whiteSpace==='nowrap'?'auto':'hidden';
+}
+const editor=document.getElementById('editor');
+if(editor){
+  editor.addEventListener('keydown',e=>{
+    if(e.key==='Tab'){e.preventDefault();const s=editor.selectionStart,end=editor.selectionEnd;editor.value=editor.value.substring(0,s)+'  '+editor.value.substring(end);editor.selectionStart=editor.selectionEnd=s+2;}
+    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();document.getElementById('saveForm').submit();}
+  });
+  editor.addEventListener('click',updateCursor);
+  editor.addEventListener('keyup',updateCursor);
+  function updateCursor(){
+    const text=editor.value.substring(0,editor.selectionStart);
+    const lines=text.split('\n');
+    document.getElementById('cursorPos').textContent=`行 ${lines.length}, 列 ${lines[lines.length-1].length+1}`;
+    document.getElementById('charCount').textContent=`${editor.value.length} 字符`;
+  }
+}
+</script>
+{% endblock %}

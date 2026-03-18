@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>注册 — Bot Platform</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: #0d1117; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .auth-card { background: #161b22; border: 1px solid #30363d; border-radius: 16px;
+                 width: 100%; max-width: 420px; padding: 2.5rem; }
+    .brand { color: #58a6ff; font-size: 1.6rem; font-weight: 700; }
+    .form-control { background: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 8px; }
+    .form-control:focus { background: #0d1117; border-color: #58a6ff; color: #e6edf3; box-shadow: 0 0 0 3px rgba(88,166,255,.15); }
+    .btn-primary { background: #238636; border: 1px solid #2ea043; border-radius: 8px; }
+    .btn-primary:hover { background: #2ea043; }
+    label { color: #8b949e; font-size: .875rem; }
+    .divider { border-color: #30363d; }
+    .hint { color: #8b949e; font-size: .78rem; }
+  </style>
+</head>
+<body>
+<div class="auth-card">
+  <div class="text-center mb-4">
+    <div class="brand"><i class="bi bi-person-plus me-2"></i>创建账号</div>
+    <p class="text-secondary mt-1 mb-0" style="font-size:.9rem;">注册后即可获得专属 Bot 实例</p>
+  </div>
+
+  {% if errors %}
+  <div class="alert alert-danger py-2 mb-3" style="font-size:.875rem;">
+    {% for e in errors %}
+    <div><i class="bi bi-exclamation-triangle me-1"></i>{{ e }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="post" action="/register">
+    <div class="mb-3">
+      <label class="form-label">用户名 <span class="hint">（3-32位字母/数字）</span></label>
+      <input type="text" class="form-control" name="username" required autofocus
+             value="{{ username or '' }}" placeholder="myusername"
+             pattern="[a-zA-Z0-9]+" minlength="3" maxlength="32">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">邮箱</label>
+      <input type="email" class="form-control" name="email" required
+             value="{{ email or '' }}" placeholder="you@example.com">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">密码 <span class="hint">（至少 6 位）</span></label>
+      <input type="password" class="form-control" name="password" required
+             placeholder="设置密码" minlength="6">
+    </div>
+    <div class="mb-4">
+      <label class="form-label">确认密码</label>
+      <input type="password" class="form-control" name="password2" required
+             placeholder="再次输入密码">
+    </div>
+    <button type="submit" class="btn btn-primary w-100">
+      <i class="bi bi-person-check me-1"></i>注册
+    </button>
+  </form>
+
+  <hr class="divider my-4">
+  <p class="text-center text-secondary mb-0" style="font-size:.875rem;">
+    已有账号？<a href="/login" style="color:#58a6ff;">立即登录</a>
+  </p>
+</div>
+</body>
+</html>

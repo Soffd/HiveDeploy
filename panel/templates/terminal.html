@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ service }} 终端 — Bot Platform{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<style>
+#terminal-container {
+  background: #010409;
+  border-radius: 8px;
+  padding: 8px;
+  height: calc(100vh - 220px);
+  min-height: 400px;
+  position: relative;
+}
+#terminal { width: 100%; height: 100%; }
+.conn-badge { font-size: .75rem; padding: .2rem .6rem; border-radius: 20px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h4 class="mb-0 fw-semibold">
+      <i class="bi bi-code-square me-2"></i>{{ service }} 终端
+    </h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;">
+      容器: {{ service }}_{{ user.username }}
+    </p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span id="connStatus" class="conn-badge bg-warning">连接中...</span>
+    <a href="/terminal/{% if service == 'astrbot' %}napcat{% else %}astrbot{% endif %}"
+       class="btn btn-sm btn-outline-secondary">
+      切换到 {% if service == 'astrbot' %}NapCat{% else %}AstrBot{% endif %}
+    </a>
+    <button class="btn btn-sm btn-outline-info" onclick="reconnect()">
+      <i class="bi bi-arrow-clockwise me-1"></i>重连
+    </button>
+    <a href="/dashboard" class="btn btn-sm btn-outline-secondary">← 返回</a>
+  </div>
+</div>
+
+<div id="terminal-container">
+  <div id="terminal"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+<script>
+const SERVICE = '{{ service }}';
+let term, fitAddon, ws;
+
+function initTerm() {
+  if (term) { term.dispose(); }
+  term = new Terminal({
+    theme: {
+      background: '#010409', foreground: '#adbac7',
+      cursor: '#58a6ff', selectionBackground: 'rgba(88,166,255,0.3)',
+    },
+    fontFamily: "'Cascadia Code','Fira Code','JetBrains Mono',monospace",
+    fontSize: 14, lineHeight: 1.4,
+    cursorBlink: true, convertEol: true,
+    scrollback: 5000,
+  });
+  fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(document.getElementById('terminal'));
+  fitAddon.fit();
+
+  term.onData(data => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(new TextEncoder().encode(data));
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    fitAddon.fit();
+    sendResize();
+  });
+}
+
+function sendResize() {
+  if (ws && ws.readyState === WebSocket.OPEN && term) {
+    ws.send(JSON.stringify({ type: 'resize', rows: term.rows, cols: term.cols }));
+  }
+}
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/terminal/${SERVICE}`);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onopen = () => {
+    document.getElementById('connStatus').className = 'conn-badge bg-success';
+    document.getElementById('connStatus').textContent = '已连接';
+    sendResize();
+  };
+
+  ws.onmessage = e => {
+    if (e.data instanceof ArrayBuffer) {
+      term.write(new Uint8Array(e.data));
+    } else {
+      term.write(e.data);
+    }
+  };
+
+  ws.onclose = () => {
+    document.getElementById('connStatus').className = 'conn-badge bg-danger';
+    document.getElementById('connStatus').textContent = '已断开';
+    term.writeln('\r\n\x1b[31m连接已断开。点击"重连"按钮重新连接。\x1b[0m');
+  };
+
+  ws.onerror = () => {
+    document.getElementById('connStatus').className = 'conn-badge bg-danger';
+    document.getElementById('connStatus').textContent = '连接错误';
+  };
+}
+
+function reconnect() {
+  if (ws) { try { ws.close(); } catch(e){} }
+  term.clear();
+  document.getElementById('connStatus').className = 'conn-badge bg-warning';
+  document.getElementById('connStatus').textContent = '连接中...';
+  connect();
+}
+
+initTerm();
+connect();
+</script>
+{% endblock %}

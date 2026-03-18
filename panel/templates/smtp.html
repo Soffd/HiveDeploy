@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}邮件设置 — Bot Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <h4 class="fw-semibold mb-4"><i class="bi bi-envelope-gear me-2"></i>SMTP 邮件设置</h4>
+
+    {% if request.query_params.get('saved') %}
+    <div class="alert alert-success py-2 mb-3" style="font-size:.875rem;">
+      <i class="bi bi-check-circle me-1"></i>设置已保存
+    </div>
+    {% endif %}
+
+    <div class="card mb-3">
+      <div class="card-header py-2 px-3">
+        <small class="fw-semibold text-secondary">SMTP 服务器配置</small>
+      </div>
+      <div class="card-body">
+        <form method="post" action="/admin/smtp">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label text-secondary" style="font-size:.8rem;">SMTP 服务器</label>
+              <input type="text" class="form-control" name="host" value="{{ cfg.host }}"
+                     placeholder="smtp.example.com"
+                     style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label text-secondary" style="font-size:.8rem;">端口</label>
+              <input type="number" class="form-control" name="port" value="{{ cfg.port }}"
+                     style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-secondary" style="font-size:.8rem;">用户名</label>
+              <input type="text" class="form-control" name="username" value="{{ cfg.username }}"
+                     style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-secondary" style="font-size:.8rem;">密码</label>
+              <input type="password" class="form-control" name="password" value="{{ cfg.password }}"
+                     style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-secondary" style="font-size:.8rem;">发件邮箱</label>
+              <input type="email" class="form-control" name="from_email" value="{{ cfg.from_email }}"
+                     style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-secondary" style="font-size:.8rem;">发件人名称</label>
+              <input type="text" class="form-control" name="from_name" value="{{ cfg.from_name }}"
+                     style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+            </div>
+            <div class="col-md-6">
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" name="use_tls" id="useTls"
+                       {% if cfg.use_tls %}checked{% endif %} value="true">
+                <label class="form-check-label text-secondary" for="useTls" style="font-size:.875rem;">
+                  使用 SSL/TLS（端口 465 时勾选，587 时不勾选）
+                </label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" name="enabled" id="smtpEnabled"
+                       {% if cfg.enabled %}checked{% endif %} value="true">
+                <label class="form-check-label text-secondary" for="smtpEnabled" style="font-size:.875rem;">
+                  启用邮件通知
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-success">
+              <i class="bi bi-floppy me-1"></i>保存设置
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header py-2 px-3">
+        <small class="fw-semibold text-secondary"><i class="bi bi-send me-1"></i>发送测试邮件</small>
+      </div>
+      <div class="card-body">
+        <div class="d-flex gap-2">
+          <input type="email" id="testEmail" class="form-control" placeholder="接收测试邮件的地址"
+                 style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+          <button class="btn btn-outline-info" onclick="sendTest()">
+            <i class="bi bi-send me-1"></i>发送
+          </button>
+        </div>
+        <div id="testResult" class="mt-2" style="font-size:.875rem;"></div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-body">
+        <h6 class="text-secondary mb-2" style="font-size:.85rem;">📌 提醒规则</h6>
+        <p class="text-secondary mb-0" style="font-size:.82rem; line-height:1.8;">
+          系统将在用户到期前 <strong>7天、3天、1天</strong>，以及<strong>到期当天</strong>各发送一封提醒邮件。<br>
+          用户需要在创建时填写邮箱地址，且本功能已启用，方可接收通知。
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function sendTest(){
+  const email=document.getElementById('testEmail').value;
+  if(!email){alert('请输入邮箱地址');return;}
+  const fd=new FormData();fd.append('to_email',email);
+  const r=await fetch('/admin/smtp/test',{method:'POST',body:fd});
+  const d=await r.json();
+  const el=document.getElementById('testResult');
+  el.innerHTML=d.ok
+    ?'<span class="text-success"><i class="bi bi-check-circle me-1"></i>发送成功，请检查收件箱</span>'
+    :'<span class="text-danger"><i class="bi bi-x-circle me-1"></i>'+d.error+'</span>';
+}
+</script>
+{% endblock %}

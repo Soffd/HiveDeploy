@@ -1,0 +1,8 @@
+fastapi[all]
+uvicorn[standard]
+sqlalchemy
+python-jose[cryptography]
+bcrypt
+docker
+python-multipart
+psutil

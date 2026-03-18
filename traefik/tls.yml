@@ -1,0 +1,5 @@
+# 启用 HTTPS 时取消注释，并将证书放到 traefik/certs/ 目录
+tls:
+  certificates:
+    - certFile: /certs/fullchain.crt
+      keyFile: /certs/private.pem

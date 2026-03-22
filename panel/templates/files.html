@@ -3,297 +3,554 @@
 
 {% block head %}
 <style>
-.file-row:hover { background: rgba(88,166,255,.06); }
-.shortcut-btn { background:#161b22; border:1px solid #30363d; border-radius:8px;
-                padding:.35rem .75rem; font-size:.8rem; color:#8b949e;
-                cursor:pointer; transition:all .15s; text-decoration:none; display:block; }
-.shortcut-btn:hover { border-color:#58a6ff; color:#58a6ff; }
-#editor { width:100%; min-height:540px; background:#010409; color:#adbac7;
-          border:none; outline:none; padding:1.2rem;
-          font-family:'Cascadia Code','Fira Code','JetBrains Mono',monospace;
-          font-size:.83rem; resize:vertical; line-height:1.7; tab-size:2; }
-.path-bar { background:#0d1117; border:1px solid #30363d; border-radius:8px;
-            padding:.4rem .8rem; font-family:monospace; font-size:.83rem;
-            color:#58a6ff; word-break:break-all; }
-.entry-name { font-family: monospace; font-size:.875rem; }
-.upload-zone { border:2px dashed #30363d; border-radius:8px; padding:1.5rem;
-               text-align:center; cursor:pointer; transition:all .2s; }
-.upload-zone.drag-over { border-color:#58a6ff; background:rgba(88,166,255,.05); }
+:root{--fm-bg:#0d1117;--fm-card:#161b22;--fm-border:#30363d;--fm-hover:rgba(88,166,255,.07);}
+.fm-wrap{display:flex;gap:10px;height:calc(100vh - 140px);min-height:480px;}
+.fm-sidebar{width:150px;flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;gap:5px;}
+.fm-main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;}
+.fm-toolbar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:7px 10px;
+            background:var(--fm-card);border:1px solid var(--fm-border);border-radius:10px 10px 0 0;flex-shrink:0;}
+.fm-pathbar{flex:1;min-width:0;background:#010409;border:1px solid var(--fm-border);
+            border-radius:6px;padding:3px 8px;font-family:monospace;font-size:.78rem;
+            color:#58a6ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fm-body{flex:1;overflow:auto;border:1px solid var(--fm-border);border-top:0;border-radius:0 0 10px 10px;}
+.fm-table{width:100%;border-collapse:collapse;font-size:.83rem;}
+.fm-table th{position:sticky;top:0;background:#0d1117;color:#8b949e;font-weight:500;
+              padding:6px 10px;border-bottom:1px solid var(--fm-border);text-align:left;white-space:nowrap;z-index:1;}
+.fm-table td{padding:5px 10px;border-bottom:1px solid #1c2128;vertical-align:middle;}
+.fm-table tr:last-child td{border-bottom:none;}
+.fm-table tr:hover td{background:var(--fm-hover);}
+.fm-table tr.sel td{background:rgba(88,166,255,.1);}
+.fm-name{display:flex;align-items:center;gap:6px;font-family:monospace;font-size:.82rem;
+          cursor:pointer;word-break:break-all;min-width:0;}
+.fm-name:hover{color:#58a6ff;}
+.fm-name .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;}
+.fm-size{color:#8b949e;white-space:nowrap;font-size:.75rem;font-family:monospace;}
+.fm-acts{display:flex;gap:2px;opacity:0;transition:.1s;white-space:nowrap;}
+tr:hover .fm-acts,.sel .fm-acts{opacity:1;}
+.fm-act{background:none;border:1px solid var(--fm-border);border-radius:5px;padding:2px 6px;
+         font-size:.73rem;color:#8b949e;cursor:pointer;line-height:1.4;}
+.fm-act:hover{border-color:#58a6ff;color:#58a6ff;}
+.fm-act.red:hover{border-color:#f85149;color:#f85149;}
+.sc-btn{display:block;padding:5px 8px;border-radius:7px;font-size:.77rem;color:#8b949e;
+        background:#0d1117;border:1px solid var(--fm-border);cursor:pointer;
+        text-decoration:none;transition:.15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sc-btn:hover,.sc-btn.on{border-color:#58a6ff;color:#58a6ff;background:rgba(88,166,255,.05);}
+.fm-editor{width:100%;flex:1;background:#010409;color:#adbac7;border:none;outline:none;
+            font-family:'Cascadia Code','Fira Code',monospace;font-size:.83rem;resize:none;
+            line-height:1.7;tab-size:2;padding:14px;}
+/* 右键菜单 */
+#ctxMenu{position:fixed;background:#1c2128;border:1px solid var(--fm-border);border-radius:8px;
+          padding:4px;z-index:99999;min-width:165px;box-shadow:0 8px 24px rgba(0,0,0,.6);display:none;}
+#ctxMenu.on{display:block;}
+.cx{padding:7px 14px;font-size:.83rem;color:#e6edf3;cursor:pointer;border-radius:5px;
+     display:flex;align-items:center;gap:8px;}
+.cx:hover{background:var(--fm-hover);}
+.cx.red{color:#f85149;}
+.cx-sep{height:1px;background:var(--fm-border);margin:3px 0;}
+/* toast */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+        background:#1c2128;border:1px solid var(--fm-border);border-radius:8px;
+        padding:8px 20px;font-size:.83rem;z-index:99999;display:none;
+        color:#e6edf3;box-shadow:0 4px 20px rgba(0,0,0,.5);pointer-events:none;}
+/* 预览 */
+.pv-img{max-width:100%;max-height:75vh;display:block;margin:auto;border-radius:6px;}
+.pv-vid,.pv-aud{width:100%;border-radius:6px;}
+/* 上传 */
+#dropZone{border:2px dashed var(--fm-border);border-radius:8px;padding:18px;text-align:center;cursor:pointer;transition:.2s;}
+#dropZone.over{border-color:#58a6ff;background:rgba(88,166,255,.05);}
+/* 批量栏 */
+#batchBar{display:none;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 10px;margin-top:6px;
+           background:var(--fm-card);border:1px solid var(--fm-border);border-radius:8px;flex-shrink:0;}
+/* 粘贴badge */
+#pasteBtn{display:none;}
+
+/* 移动端 */
+@media(max-width:640px){
+  .fm-wrap{flex-direction:column;height:auto;min-height:0;}
+  .fm-sidebar{width:100%;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;}
+  .sc-btn{flex:0 0 auto;padding:4px 10px;font-size:.75rem;}
+  .fm-main{min-height:60vh;}
+  .fm-body{max-height:60vh;}
+  th.hide-m,td.hide-m{display:none;}
+  .fm-acts{opacity:1 !important;}
+  .fm-name .nm{white-space:normal;word-break:break-all;}
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-3">
-  <div>
-    <h4 class="mb-0 fw-semibold"><i class="bi bi-folder2-open me-2"></i>文件管理</h4>
-    <div class="path-bar mt-2">{{ current_path }}</div>
-  </div>
+<div class="d-flex align-items-center justify-content-between mb-2">
+  <h5 class="mb-0 fw-semibold"><i class="bi bi-folder2-open me-2"></i>文件管理</h5>
   <div class="d-flex gap-2">
-    <a href="/files/astrbot?path={{ astrbot_root }}"
-       class="btn btn-sm {% if service=='astrbot' %}btn-primary{% else %}btn-outline-primary{% endif %}">AstrBot</a>
-    <a href="/files/napcat?path={{ napcat_root }}"
-       class="btn btn-sm {% if service=='napcat' %}btn-danger{% else %}btn-outline-danger{% endif %}">NapCat</a>
-    <a href="/dashboard" class="btn btn-sm btn-outline-secondary">← 控制台</a>
+    <a href="/files/astrbot" class="btn btn-sm {% if service=='astrbot' %}btn-primary{% else %}btn-outline-primary{% endif %}">AstrBot</a>
+    <a href="/files/napcat"  class="btn btn-sm {% if service=='napcat'  %}btn-danger{% else %}btn-outline-danger{% endif %}">NapCat</a>
+    <a href="/dashboard" class="btn btn-sm btn-outline-secondary">← 返回</a>
   </div>
 </div>
 
-{% if saved %}<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i>文件已保存</div>{% endif %}
-{% if error_msg %}<div class="alert alert-danger py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-exclamation-triangle me-1"></i>{{ error_msg }}</div>{% endif %}
-
-<div class="row g-3">
-  <div class="col-md-2">
-    <div class="card h-100">
-      <div class="card-header py-2 px-3"><small class="text-secondary fw-semibold">快捷目录</small></div>
-      <div class="card-body p-2 d-flex flex-column gap-1">
-        {% for label, spath in shortcuts.items() %}
-        <a href="/files/{{ service }}?path={{ spath }}" class="shortcut-btn">{{ label }}</a>
-        {% endfor %}
-      </div>
-    </div>
+<div class="fm-wrap">
+  <div class="fm-sidebar">
+    {% for label,spath in shortcuts.items() %}
+    <a href="/files/{{ service }}?path={{ spath }}" class="sc-btn {% if current_path==spath %}on{% endif %}">{{ label }}</a>
+    {% endfor %}
   </div>
 
-  <div class="col-md-10">
+  <div class="fm-main">
     {% if not is_file %}
-    {# 目录浏览 #}
-    <div class="card mb-3">
-      <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
-        <small class="fw-semibold text-secondary">
-          <i class="bi bi-folder me-1"></i>目录内容
-          <span class="text-secondary ms-2" style="font-weight:400;">{{ entries|length }} 项</span>
-        </small>
-        <div class="d-flex gap-2">
-          {% if parent_path %}
-          <a href="/files/{{ service }}?path={{ parent_path }}" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-arrow-up me-1"></i>上级
-          </a>
-          {% endif %}
-          <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#mkdirModal">
-            <i class="bi bi-folder-plus me-1"></i>新建目录
-          </button>
-          <button class="btn btn-sm btn-outline-info" onclick="toggleUpload()">
-            <i class="bi bi-upload me-1"></i>上传文件
-          </button>
-        </div>
-      </div>
+    {# ── 目录视图 ── #}
+    <div class="fm-toolbar">
+      <span class="fm-pathbar" title="{{ current_path }}">{{ current_path }}</span>
+      {% if parent_path %}
+      <a href="/files/{{ service }}?path={{ parent_path }}" class="btn btn-sm btn-outline-secondary" title="上级"><i class="bi bi-arrow-up"></i></a>
+      {% endif %}
+      <button class="btn btn-sm btn-outline-success" onclick="showModal('mkdirModal')" title="新建文件夹"><i class="bi bi-folder-plus"></i></button>
+      <button class="btn btn-sm btn-outline-primary"  onclick="showModal('newFileModal')" title="新建文件"><i class="bi bi-file-earmark-plus"></i></button>
+      <button class="btn btn-sm btn-outline-info"     onclick="toggleUpload()" title="上传"><i class="bi bi-upload"></i></button>
+      <button class="btn btn-sm btn-success" id="pasteBtn" onclick="pasteHere()" title="粘贴">
+        <i class="bi bi-clipboard-check me-1"></i><span id="pasteBtnLabel">粘贴</span>
+      </button>
+    </div>
 
-      {# 上传区域 #}
-      <div id="uploadZoneWrap" class="d-none card-body border-bottom" style="border-color:#30363d!important;">
-        <div class="upload-zone" id="uploadZone"
-             ondrop="handleDrop(event)" ondragover="e=>e.preventDefault()"
-             ondragenter="this.classList.add('drag-over')"
-             ondragleave="this.classList.remove('drag-over')"
-             onclick="document.getElementById('fileInput').click()">
-          <i class="bi bi-cloud-upload fs-3 text-secondary mb-2 d-block"></i>
-          <p class="text-secondary mb-1" style="font-size:.875rem;">拖拽文件到此处，或点击选择文件</p>
-          <input type="file" id="fileInput" multiple class="d-none" onchange="handleFiles(this.files)">
-        </div>
-        <div id="uploadList" class="mt-2"></div>
+    <div id="uploadWrap" class="d-none" style="background:#0d1117;border:1px solid var(--fm-border);border-top:0;padding:8px;">
+      <div id="dropZone" onclick="document.getElementById('fileInput').click()"
+           ondragover="event.preventDefault();this.classList.add('over')"
+           ondragleave="this.classList.remove('over')"
+           ondrop="handleDrop(event)">
+        <i class="bi bi-cloud-upload fs-4 text-secondary d-block mb-1"></i>
+        <span class="text-secondary" style="font-size:.82rem;">拖拽或点击上传</span>
+        <input type="file" id="fileInput" multiple class="d-none" onchange="handleFiles(this.files)">
       </div>
+      <div id="uploadList" class="mt-2"></div>
+    </div>
 
-      <div class="table-responsive">
-        <table class="table table-dark mb-0" style="font-size:.875rem;">
-          <thead style="border-bottom:1px solid #30363d;">
-            <tr>
-              <th class="px-3 py-2 text-secondary fw-normal">名称</th>
-              <th class="py-2 text-secondary fw-normal">大小</th>
-              <th class="py-2 text-secondary fw-normal">权限</th>
-              <th class="py-2 text-secondary fw-normal">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for e in entries %}
-            <tr class="file-row">
-              <td class="px-3 py-2">
-                {% if e.is_dir %}
-                <a href="/files/{{ service }}?path={{ e.full_path }}"
-                   style="color:#d29922; text-decoration:none;" class="entry-name">
-                  <i class="bi bi-folder-fill me-2"></i>{{ e.name }}
-                </a>
-                {% elif e.name | lower | regex_match('\.(json|yaml|yml|toml|ini|cfg|conf|py|js|md|txt|sh|env|log|xml|csv|html|css|properties)$') %}
-                <a href="/files/{{ service }}?path={{ e.full_path }}"
-                   style="color:#58a6ff; text-decoration:none;" class="entry-name">
-                  <i class="bi bi-file-earmark-code me-2"></i>{{ e.name }}
-                </a>
-                {% else %}
-                <span class="entry-name text-secondary">
-                  <i class="bi bi-file-earmark me-2"></i>{{ e.name }}
-                </span>
-                {% endif %}
-              </td>
-              <td class="py-2 text-secondary" style="font-family:monospace;">{{ e.size }}</td>
-              <td class="py-2 text-secondary" style="font-family:monospace; font-size:.75rem;">{{ e.perms }}</td>
-              <td class="py-2">
-                <div class="d-flex gap-1">
-                  {% if not e.is_dir %}
-                  <a href="/files/{{ service }}?path={{ e.full_path }}"
-                     class="btn btn-sm btn-outline-primary" title="编辑">
-                    <i class="bi bi-pencil"></i>
-                  </a>
-                  <a href="/files/{{ service }}/download?path={{ e.full_path }}"
-                     class="btn btn-sm btn-outline-secondary" title="下载">
-                    <i class="bi bi-download"></i>
-                  </a>
-                  {% endif %}
-                  <form method="post" action="/files/{{ service }}/delete" class="d-inline"
-                        onsubmit="return confirm('确定删除 {{ e.name }}？此操作不可撤销')">
-                    <input type="hidden" name="path" value="{{ e.full_path }}">
-                    <input type="hidden" name="return_path" value="{{ current_path }}">
-                    <button class="btn btn-sm btn-outline-danger" title="删除">
-                      <i class="bi bi-trash3"></i>
-                    </button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="4" class="text-center text-secondary py-4">目录为空</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    <div class="fm-body">
+      <table class="fm-table">
+        <thead>
+          <tr>
+            <th style="width:28px;padding-right:4px;"><input type="checkbox" id="selAll" onchange="toggleAll(this)"></th>
+            <th>名称</th>
+            <th class="hide-m">大小</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entries %}
+          {% set lname = e.name.lower() %}
+          {% set is_img = lname.endswith(('.jpg','.jpeg','.png','.gif','.webp','.svg','.bmp')) %}
+          {% set is_vid = lname.endswith(('.mp4','.webm','.mov','.mkv')) %}
+          {% set is_aud = lname.endswith(('.mp3','.wav','.ogg','.flac','.aac','.m4a')) %}
+          {% set is_arc = lname.endswith(('.zip','.tar','.gz','.tgz','.bz2')) %}
+          {% set is_txt = not e.is_dir and not is_img and not is_vid and not is_aud %}
+          <tr data-path="{{ e.full_path }}" data-name="{{ e.name }}" data-isdir="{{ e.is_dir|lower }}"
+              data-img="{{ is_img|lower }}" data-vid="{{ is_vid|lower }}" data-aud="{{ is_aud|lower }}" data-arc="{{ is_arc|lower }}"
+              oncontextmenu="showCtx(event,this)">
+            <td style="padding-right:4px;"><input type="checkbox" class="rcb" onchange="onCbChange()"></td>
+            <td>
+              <div class="fm-name" onclick="navTo('{{ e.full_path }}','{{ e.is_dir|lower }}','{{ e.name }}','{{ is_img|lower }}','{{ is_vid|lower }}','{{ is_aud|lower }}')">
+                {% if e.is_dir %}<i class="bi bi-folder-fill" style="color:#d29922;flex-shrink:0;"></i>
+                {% elif is_img %}<i class="bi bi-file-earmark-image" style="color:#3fb950;flex-shrink:0;"></i>
+                {% elif is_vid %}<i class="bi bi-file-earmark-play" style="color:#58a6ff;flex-shrink:0;"></i>
+                {% elif is_aud %}<i class="bi bi-file-earmark-music" style="color:#d29922;flex-shrink:0;"></i>
+                {% elif is_arc %}<i class="bi bi-file-earmark-zip" style="color:#f78166;flex-shrink:0;"></i>
+                {% else %}<i class="bi bi-file-earmark-code" style="color:#8b949e;flex-shrink:0;"></i>{% endif %}
+                <span class="nm">{{ e.name }}</span>
+              </div>
+            </td>
+            <td class="fm-size hide-m">{{ e.size }}</td>
+            <td>
+              <div class="fm-acts">
+                {% if not e.is_dir %}<button class="fm-act" onclick="previewOrEdit('{{ e.full_path }}','{{ e.name }}','{{ is_img|lower }}','{{ is_vid|lower }}','{{ is_aud|lower }}')" title="预览/编辑"><i class="bi bi-eye"></i></button>{% endif %}
+                {% if not e.is_dir %}<a class="fm-act" href="/files/{{ service }}/download?path={{ e.full_path }}" title="下载"><i class="bi bi-download"></i></a>{% endif %}
+                <button class="fm-act" onclick="doCopy('{{ e.full_path }}','{{ e.name }}')" title="复制"><i class="bi bi-copy"></i></button>
+                <button class="fm-act" onclick="doCut('{{ e.full_path }}','{{ e.name }}')" title="剪切"><i class="bi bi-scissors"></i></button>
+                <button class="fm-act" onclick="doRename('{{ e.full_path }}','{{ e.name }}')" title="重命名"><i class="bi bi-pencil"></i></button>
+                {% if is_arc %}<button class="fm-act" onclick="doExtract('{{ e.full_path }}')" title="解压"><i class="bi bi-archive"></i></button>{% endif %}
+                {% if e.is_dir %}<button class="fm-act" onclick="doCompress('{{ e.full_path }}','{{ e.name }}')" title="压缩"><i class="bi bi-file-earmark-zip"></i></button>{% endif %}
+                <button class="fm-act red" onclick="doDelete('{{ e.full_path }}','{{ e.name }}')" title="删除"><i class="bi bi-trash3"></i></button>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-secondary py-4" style="font-size:.85rem;">目录为空</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div id="batchBar">
+      <span id="selInfo" class="text-secondary me-1" style="font-size:.82rem;"></span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="batchCopy()"><i class="bi bi-copy me-1"></i>复制</button>
+      <button class="btn btn-sm btn-outline-warning"   onclick="batchCut()"><i class="bi bi-scissors me-1"></i>剪切</button>
+      <button class="btn btn-sm btn-outline-danger"    onclick="batchDelete()"><i class="bi bi-trash3 me-1"></i>删除</button>
+      <button class="btn btn-sm btn-success" id="batchPasteBtn" style="display:none;" onclick="pasteHere()"><i class="bi bi-clipboard-check me-1"></i>粘贴到此处</button>
+      <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="clearSel()">✕ 取消</button>
     </div>
 
     {% else %}
-    {# 文件编辑器 #}
-    <div class="card">
-      <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
-        <small class="fw-semibold">
-          <i class="bi bi-pencil-square me-1 text-secondary"></i>
-          <span style="font-family:monospace;">{{ filename }}</span>
-        </small>
-        <div class="d-flex gap-2">
-          <button class="btn btn-sm btn-outline-secondary" onclick="formatJSON()">
-            <i class="bi bi-braces me-1"></i>格式化 JSON
-          </button>
-          <button class="btn btn-sm btn-outline-info" onclick="wrapLines()">
-            <i class="bi bi-text-wrap me-1"></i>换行
-          </button>
-          <a href="/files/{{ service }}/download?path={{ current_path }}"
-             class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-download me-1"></i>下载
-          </a>
-          <a href="/files/{{ service }}?path={{ parent_path }}"
-             class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-x me-1"></i>取消
-          </a>
-          <button class="btn btn-sm btn-success"
-                  onclick="document.getElementById('saveForm').submit()">
-            <i class="bi bi-floppy me-1"></i>保存
-          </button>
-        </div>
-      </div>
-      <div>
-        <form id="saveForm" method="post" action="/files/{{ service }}/save">
-          <input type="hidden" name="path" value="{{ current_path }}">
-          <textarea id="editor" name="content" spellcheck="false">{{ file_content }}</textarea>
-        </form>
-      </div>
-      <div class="card-footer py-1 px-3 d-flex justify-content-between"
-           style="font-size:.75rem; color:#8b949e; background:#0d1117;">
-        <span id="cursorPos">行 1, 列 1</span>
-        <span id="charCount">{{ file_content | length }} 字符</span>
+    {# ── 文件编辑/预览 ── #}
+    <div class="fm-toolbar">
+      <span class="fm-pathbar" title="{{ current_path }}">{{ current_path }}</span>
+      <a href="/files/{{ service }}?path={{ parent_path }}" class="btn btn-sm btn-outline-secondary">← 目录</a>
+      <a href="/files/{{ service }}/download?path={{ current_path }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i></a>
+      {% set fn=filename.lower() %}
+      {% if not fn.endswith(('.jpg','.jpeg','.png','.gif','.webp','.svg','.mp4','.webm','.mov','.mp3','.wav','.ogg','.flac','.aac','.m4a')) %}
+      <button class="btn btn-sm btn-outline-secondary" onclick="fmFmt()"><i class="bi bi-braces me-1"></i>JSON</button>
+      <button class="btn btn-sm btn-success" onclick="document.getElementById('sf').submit()"><i class="bi bi-floppy me-1"></i>保存</button>
+      {% endif %}
+    </div>
+    {% if saved %}<div class="py-1 px-3" style="background:#0d1117;border:1px solid var(--fm-border);border-top:0;font-size:.8rem;color:#3fb950;"><i class="bi bi-check-circle me-1"></i>已保存</div>{% endif %}
+    {% if error_msg %}<div class="py-1 px-3" style="background:#0d1117;border:1px solid var(--fm-border);border-top:0;font-size:.8rem;color:#d29922;">{{ error_msg }}</div>{% endif %}
+
+    {% set fn=filename.lower() %}
+    {% if fn.endswith(('.jpg','.jpeg','.png','.gif','.webp','.svg','.bmp')) %}
+    <div class="flex-grow-1 d-flex align-items-center justify-content-center p-3 fm-body" style="background:#010409;">
+      <img src="/files/{{ service }}/preview?path={{ current_path }}" class="pv-img" alt="{{ filename }}">
+    </div>
+    {% elif fn.endswith(('.mp4','.webm','.mov','.mkv')) %}
+    <div class="flex-grow-1 p-2 fm-body" style="background:#010409;">
+      <video controls class="pv-vid"><source src="/files/{{ service }}/preview?path={{ current_path }}"></video>
+    </div>
+    {% elif fn.endswith(('.mp3','.wav','.ogg','.flac','.aac','.m4a')) %}
+    <div class="flex-grow-1 d-flex align-items-center justify-content-center p-4 fm-body" style="background:#010409;">
+      <div class="text-center">
+        <i class="bi bi-music-note-beamed fs-1 text-secondary d-block mb-3"></i>
+        <p class="text-secondary mb-3">{{ filename }}</p>
+        <audio controls class="pv-aud"><source src="/files/{{ service }}/preview?path={{ current_path }}"></audio>
       </div>
     </div>
+    {% else %}
+    <form id="sf" method="post" action="/files/{{ service }}/save" class="flex-grow-1 d-flex flex-column" style="min-height:0;">
+      <input type="hidden" name="path" value="{{ current_path }}">
+      <textarea class="fm-editor" name="content" id="ed" spellcheck="false">{{ file_content }}</textarea>
+    </form>
+    <div style="background:#0d1117;border:1px solid var(--fm-border);border-top:0;border-radius:0 0 10px 10px;
+                padding:3px 12px;font-size:.72rem;color:#484f58;display:flex;justify-content:space-between;flex-shrink:0;">
+      <span id="cur">行 1, 列 1</span><span id="cnt">{{ file_content|length }} 字符</span>
+    </div>
+    {% endif %}
     {% endif %}
   </div>
 </div>
 
-<div class="modal fade" id="mkdirModal" tabindex="-1">
-  <div class="modal-dialog modal-sm">
-    <div class="modal-content" style="background:#161b22; border:1px solid #30363d;">
-      <div class="modal-header border-0">
-        <h6 class="modal-title">新建目录</h6>
+{# 右键菜单 #}
+<div id="ctxMenu">
+  <div class="cx" id="cxPrev" onclick="ctxDo('prev')"><i class="bi bi-eye"></i>预览/编辑</div>
+  <div class="cx" id="cxDl"   onclick="ctxDo('dl')">  <i class="bi bi-download"></i>下载</div>
+  <div class="cx-sep"></div>
+  <div class="cx" onclick="ctxDo('copy')"><i class="bi bi-copy"></i>复制</div>
+  <div class="cx" onclick="ctxDo('cut')"> <i class="bi bi-scissors"></i>剪切</div>
+  <div class="cx" id="cxPaste" onclick="ctxDo('paste')"><i class="bi bi-clipboard"></i>粘贴到此处</div>
+  <div class="cx-sep"></div>
+  <div class="cx" onclick="ctxDo('rename')"><i class="bi bi-cursor-text"></i>重命名</div>
+  <div class="cx" id="cxExt"  onclick="ctxDo('extract')"><i class="bi bi-archive"></i>解压</div>
+  <div class="cx" id="cxZip"  onclick="ctxDo('compress')"><i class="bi bi-file-earmark-zip"></i>压缩为 zip</div>
+  <div class="cx-sep"></div>
+  <div class="cx red" onclick="ctxDo('del')"><i class="bi bi-trash3"></i>删除</div>
+</div>
+
+{# 预览弹窗 #}
+<div class="modal fade" id="pvModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" style="background:#0d1117;border:1px solid var(--fm-border);">
+      <div class="modal-header border-0 py-2">
+        <h6 class="modal-title text-secondary" id="pvTitle" style="font-family:monospace;font-size:.85rem;"></h6>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
+      <div class="modal-body p-0" id="pvBody" style="background:#010409;border-radius:0 0 8px 8px;min-height:200px;"></div>
+    </div>
+  </div>
+</div>
+
+{# 新建文件夹 #}
+<div class="modal fade" id="mkdirModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content" style="background:#161b22;border:1px solid var(--fm-border);">
+      <div class="modal-header border-0 pb-1"><h6 class="modal-title">新建文件夹</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <form method="post" action="/files/{{ service }}/mkdir">
-        <div class="modal-body pt-0">
-          <input type="hidden" name="return_path" value="{{ current_path }}">
-          <input type="hidden" name="base_path" value="{{ current_path }}">
-          <input type="text" class="form-control" name="dirname" placeholder="目录名称" required
-                 style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="submit" class="btn btn-success btn-sm">创建</button>
-        </div>
+        <div class="modal-body"><input type="hidden" name="return_path" value="{{ current_path }}"><input type="hidden" name="base_path" value="{{ current_path }}">
+          <input type="text" class="form-control" name="dirname" placeholder="文件夹名" required autofocus style="background:#0d1117;border-color:var(--fm-border);color:#e6edf3;"></div>
+        <div class="modal-footer border-0 pt-0"><button type="submit" class="btn btn-success btn-sm">创建</button></div>
       </form>
     </div>
   </div>
 </div>
+
+{# 新建文件 #}
+<div class="modal fade" id="newFileModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content" style="background:#161b22;border:1px solid var(--fm-border);">
+      <div class="modal-header border-0 pb-1"><h6 class="modal-title">新建文件</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body"><input type="text" class="form-control" id="nfName" placeholder="文件名（如 config.json）" autofocus style="background:#0d1117;border-color:var(--fm-border);color:#e6edf3;"></div>
+      <div class="modal-footer border-0 pt-0"><button class="btn btn-success btn-sm" onclick="createFile()">创建并编辑</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const SERVICE = '{{ service }}';
-const CURRENT_PATH = '{{ current_path }}';
+const SVC='{{ service }}', CWD='{{ current_path }}';
+let ctxRow=null;
 
-function toggleUpload(){
-  document.getElementById('uploadZoneWrap').classList.toggle('d-none');
+// 剪贴板持久化到 sessionStorage，页面跳转后不丢失
+function getCB(){
+  try{ const s=sessionStorage.getItem('fm_cb'); return s?JSON.parse(s):null; }
+  catch(e){ return null; }
+}
+function saveCB(cb){
+  try{ if(cb) sessionStorage.setItem('fm_cb',JSON.stringify(cb));
+       else sessionStorage.removeItem('fm_cb'); }
+  catch(e){}
+}
+let CB=getCB(); // 从 sessionStorage 恢复
+
+// ── Toast ──
+function toast(msg,ok=true){
+  const el=document.getElementById('toast');
+  el.textContent=(ok?'✅ ':'❌ ')+msg;
+  el.style.display='block';
+  el.style.borderColor=ok?'#3fb950':'#f85149';
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.style.display='none',2800);
 }
 
+// ── 导航 ──
+function navTo(path,isDir,name,isImg,isVid,isAud){
+  if(isDir==='true'){ location.href=`/files/${SVC}?path=${encodeURIComponent(path)}`; return; }
+  if(isImg==='true'||isVid==='true'||isAud==='true'){ showPreview(path,name,isImg,isVid,isAud); return; }
+  location.href=`/files/${SVC}?path=${encodeURIComponent(path)}`;
+}
+function previewOrEdit(path,name,isImg,isVid,isAud){
+  if(isImg==='true'||isVid==='true'||isAud==='true'){ showPreview(path,name,isImg,isVid,isAud); return; }
+  location.href=`/files/${SVC}?path=${encodeURIComponent(path)}`;
+}
+
+// ── 预览 ──
+function showPreview(path,name,isImg,isVid,isAud){
+  const url=`/files/${SVC}/preview?path=${encodeURIComponent(path)}`;
+  let body='';
+  if(isImg==='true') body=`<div class="p-2 text-center"><img src="${url}" class="pv-img"></div>`;
+  else if(isVid==='true') body=`<div class="p-2"><video controls class="pv-vid"><source src="${url}"></video></div>`;
+  else if(isAud==='true') body=`<div class="text-center p-4"><i class="bi bi-music-note-beamed fs-1 text-secondary d-block mb-3"></i><audio controls class="w-100"><source src="${url}"></audio></div>`;
+  document.getElementById('pvTitle').textContent=name;
+  document.getElementById('pvBody').innerHTML=body;
+  new bootstrap.Modal(document.getElementById('pvModal')).show();
+}
+
+// ── 上传 ──
+function toggleUpload(){ document.getElementById('uploadWrap').classList.toggle('d-none'); }
 function handleDrop(e){
-  e.preventDefault();
-  document.getElementById('uploadZone').classList.remove('drag-over');
+  e.preventDefault(); e.currentTarget.classList.remove('over');
   handleFiles(e.dataTransfer.files);
 }
-
 async function handleFiles(files){
-  for(const file of files){
-    await uploadFile(file);
-  }
+  for(const f of files) await uploadOne(f);
 }
-
-async function uploadFile(file){
+async function uploadOne(f){
   const list=document.getElementById('uploadList');
-  const id='uf_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-  const item=document.createElement('div');
-  item.id=id; item.className='d-flex align-items-center gap-2 mb-1';
-  item.style='font-size:.8rem;';
-  item.innerHTML=`<i class="bi bi-file-earmark text-secondary"></i><span class="text-secondary">${file.name}</span><span class="spinner-border spinner-border-sm text-info ms-auto"></span>`;
-  list.appendChild(item);
-
-  const fd=new FormData();
-  fd.append('upload_path', CURRENT_PATH);
-  fd.append('file', file);
+  const d=document.createElement('div'); d.style='font-size:.78rem;padding:2px 0;';
+  d.innerHTML=`<span class="text-secondary">${f.name}</span> <span class="spinner-border spinner-border-sm text-info ms-1"></span>`;
+  list.appendChild(d);
+  const fd=new FormData(); fd.append('upload_path',CWD); fd.append('file',f);
   try{
-    const r=await fetch(`/files/${SERVICE}/upload`,{method:'POST',body:fd});
-    const d=await r.json();
-    if(d.ok){
-      item.innerHTML=`<i class="bi bi-check-circle text-success"></i><span class="text-secondary">${file.name}</span><span class="text-success ms-auto">上传成功</span>`;
-      setTimeout(()=>location.reload(),800);
-    } else {
-      item.innerHTML=`<i class="bi bi-x-circle text-danger"></i><span class="text-secondary">${file.name}</span><span class="text-danger ms-auto">${d.error}</span>`;
-    }
-  }catch(e){
-    item.innerHTML=`<i class="bi bi-x-circle text-danger"></i><span class="text-secondary">${file.name}</span><span class="text-danger ms-auto">上传失败</span>`;
-  }
+    const r=await fetch(`/files/${SVC}/upload`,{method:'POST',body:fd});
+    const j=await r.json();
+    d.innerHTML=j.ok?`<span class="text-success">✅ ${f.name}</span>`:`<span class="text-danger">❌ ${f.name}: ${j.error}</span>`;
+    if(j.ok) setTimeout(()=>location.reload(),500);
+  }catch(e){ d.innerHTML=`<span class="text-danger">❌ ${f.name}</span>`; }
 }
 
-function formatJSON(){
-  const ta=document.getElementById('editor');
-  if(!ta)return;
-  try{ta.value=JSON.stringify(JSON.parse(ta.value),null,2);}
-  catch(e){alert('不是有效的 JSON:\n'+e.message);}
+// ── 剪贴板 ──
+function setCB(op,items){
+  CB={op,items};
+  saveCB(CB);
+  updatePasteUI();
+  toast(op==='copy'?`已复制 ${items.length} 项`:`已剪切 ${items.length} 项`);
 }
-function wrapLines(){
-  const ta=document.getElementById('editor');
-  if(!ta)return;
-  ta.style.whiteSpace=ta.style.whiteSpace==='nowrap'?'pre-wrap':'nowrap';
-  ta.style.overflowX=ta.style.whiteSpace==='nowrap'?'auto':'hidden';
-}
-const editor=document.getElementById('editor');
-if(editor){
-  editor.addEventListener('keydown',e=>{
-    if(e.key==='Tab'){e.preventDefault();const s=editor.selectionStart,end=editor.selectionEnd;editor.value=editor.value.substring(0,s)+'  '+editor.value.substring(end);editor.selectionStart=editor.selectionEnd=s+2;}
-    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();document.getElementById('saveForm').submit();}
-  });
-  editor.addEventListener('click',updateCursor);
-  editor.addEventListener('keyup',updateCursor);
-  function updateCursor(){
-    const text=editor.value.substring(0,editor.selectionStart);
-    const lines=text.split('\n');
-    document.getElementById('cursorPos').textContent=`行 ${lines.length}, 列 ${lines[lines.length-1].length+1}`;
-    document.getElementById('charCount').textContent=`${editor.value.length} 字符`;
+function updatePasteUI(){
+  const btn=document.getElementById('pasteBtn');
+  const lbl=document.getElementById('pasteBtnLabel');
+  const bp=document.getElementById('batchPasteBtn');
+  if(CB){
+    btn.style.display='inline-flex';
+    lbl.textContent=`粘贴 (${CB.items.length})`;
+    if(bp) bp.style.display='inline-flex';
+  } else {
+    btn.style.display='none';
+    if(bp) bp.style.display='none';
   }
 }
+function doCopy(path,name){ setCB('copy',[{path,name}]); }
+function doCut (path,name){ setCB('cut', [{path,name}]); }
+function batchCopy(){ const s=getSel(); if(!s.length)return; setCB('copy',s); }
+function batchCut (){ const s=getSel(); if(!s.length)return; setCB('cut', s); }
+
+async function pasteHere(){
+  if(!CB)return;
+  for(const item of CB.items){
+    const dst=CWD.replace(/\/+$/,'')+'/'+item.name;
+    const op=CB.op==='copy'?'copy':'move';
+    const r=await fetch(`/files/${SVC}/${op}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({src:item.path,dst})
+    });
+    const j=await r.json();
+    if(!j.ok){ toast(`${item.name} 失败: ${j.error}`,false); return; }
+  }
+  if(CB.op==='cut'){ CB=null; saveCB(null); }
+  toast('粘贴完成');
+  setTimeout(()=>location.reload(),500);
+}
+
+// ── 重命名 ──
+async function doRename(path,name){
+  const n=prompt('重命名为：',name);
+  if(!n||n===name)return;
+  const parent=path.substring(0,path.lastIndexOf('/'));
+  const fd=new FormData(); fd.append('src',path); fd.append('dst',parent+'/'+n);
+  const r=await fetch(`/files/${SVC}/rename`,{method:'POST',body:fd});
+  const j=await r.json();
+  j.ok?setTimeout(()=>location.reload(),300):toast('重命名失败: '+j.error,false);
+}
+
+// ── 删除 ──
+async function doDelete(path,name){
+  if(!confirm(`删除 "${name}"？不可撤销`))return;
+  const fd=new FormData(); fd.append('path',path); fd.append('return_path',CWD);
+  await fetch(`/files/${SVC}/delete`,{method:'POST',body:fd});
+  toast('已删除: '+name);
+  setTimeout(()=>location.reload(),400);
+}
+async function batchDelete(){
+  const s=getSel();
+  if(!s.length||!confirm(`删除选中 ${s.length} 项？`))return;
+  for(const item of s){
+    const fd=new FormData(); fd.append('path',item.path); fd.append('return_path',CWD);
+    await fetch(`/files/${SVC}/delete`,{method:'POST',body:fd});
+  }
+  toast(`已删除 ${s.length} 项`);
+  setTimeout(()=>location.reload(),400);
+}
+
+// ── 解压/压缩 ──
+async function doExtract(path){
+  const parent=path.substring(0,path.lastIndexOf('/'));
+  const dest=prompt('解压到目录：',parent);
+  if(!dest)return;
+  const fd=new FormData(); fd.append('path',path); fd.append('dest_dir',dest);
+  toast('解压中，请稍候...');
+  const r=await fetch(`/files/${SVC}/extract`,{method:'POST',body:fd});
+  const j=await r.json();
+  j.ok?(toast('解压完成'),setTimeout(()=>location.reload(),600)):toast('解压失败: '+j.error,false);
+}
+async function doCompress(path,name){
+  const dest=CWD.replace(/\/+$/,'')+'/'+name+'.zip';
+  const d=prompt('压缩到：',dest);
+  if(!d)return;
+  const fd=new FormData(); fd.append('src',path); fd.append('dest_zip',d);
+  toast('压缩中，请稍候...');
+  const r=await fetch(`/files/${SVC}/compress`,{method:'POST',body:fd});
+  const j=await r.json();
+  j.ok?(toast('压缩完成'),setTimeout(()=>location.reload(),600)):toast('压缩失败: '+j.error,false);
+}
+
+// ── 新建文件 ──
+function showModal(id){ new bootstrap.Modal(document.getElementById(id)).show(); }
+async function createFile(){
+  const name=document.getElementById('nfName').value.trim();
+  if(!name)return;
+  const path=CWD.replace(/\/+$/,'')+'/'+name;
+  const fd=new FormData(); fd.append('path',path); fd.append('content','');
+  await fetch(`/files/${SVC}/save`,{method:'POST',body:fd});
+  location.href=`/files/${SVC}?path=${encodeURIComponent(path)}`;
+}
+
+// ── 多选 ──
+function getSel(){
+  return [...document.querySelectorAll('.rcb:checked')].map(cb=>{
+    const tr=cb.closest('tr');
+    return {path:tr.dataset.path, name:tr.dataset.name};
+  });
+}
+function onCbChange(){
+  const s=getSel(), bar=document.getElementById('batchBar');
+  if(s.length){ bar.style.display='flex'; document.getElementById('selInfo').textContent=`已选 ${s.length} 项`; }
+  else bar.style.display='none';
+}
+function toggleAll(cb){ document.querySelectorAll('.rcb').forEach(c=>c.checked=cb.checked); onCbChange(); }
+function clearSel(){ document.querySelectorAll('.rcb').forEach(c=>c.checked=false); document.getElementById('selAll').checked=false; onCbChange(); }
+
+// ── 右键菜单 ──
+function showCtx(e, row){
+  e.preventDefault();
+  e.stopPropagation();
+  ctxRow=row;
+  const isDir=row.dataset.isdir==='true';
+  const isArc=row.dataset.arc==='true';
+  const isFile=!isDir;
+  document.getElementById('cxPrev').style.display=isFile?'':'none';
+  document.getElementById('cxDl').style.display=isFile?'':'none';
+  document.getElementById('cxExt').style.display=(isFile&&isArc)?'':'none';
+  document.getElementById('cxZip').style.display=isDir?'':'none';
+  document.getElementById('cxPaste').style.display=CB?'':'none';
+  const menu=document.getElementById('ctxMenu');
+  let x=e.clientX, y=e.clientY;
+  menu.style.display='block';
+  const mw=menu.offsetWidth, mh=menu.offsetHeight;
+  if(x+mw>window.innerWidth) x=window.innerWidth-mw-4;
+  if(y+mh>window.innerHeight) y=window.innerHeight-mh-4;
+  menu.style.left=x+'px'; menu.style.top=y+'px';
+}
+document.addEventListener('click',()=>{ document.getElementById('ctxMenu').style.display='none'; });
+document.addEventListener('contextmenu', e=>{
+  if(!e.target.closest('#ctxMenu') && !e.target.closest('tr[data-path]')){
+    document.getElementById('ctxMenu').style.display='none';
+  }
+});
+
+function ctxDo(act){
+  document.getElementById('ctxMenu').style.display='none';
+  if(!ctxRow)return;
+  const {path,name,isdir,isImg,isVid,isAud}={
+    path:ctxRow.dataset.path, name:ctxRow.dataset.name,
+    isdir:ctxRow.dataset.isdir, isImg:ctxRow.dataset.img,
+    isVid:ctxRow.dataset.vid, isAud:ctxRow.dataset.aud
+  };
+  if(act==='prev') previewOrEdit(path,name,isImg,isVid,isAud);
+  else if(act==='dl') location.href=`/files/${SVC}/download?path=${encodeURIComponent(path)}`;
+  else if(act==='copy') doCopy(path,name);
+  else if(act==='cut')  doCut(path,name);
+  else if(act==='paste') pasteHere();
+  else if(act==='rename') doRename(path,name);
+  else if(act==='extract') doExtract(path);
+  else if(act==='compress') doCompress(path,name);
+  else if(act==='del') doDelete(path,name);
+}
+
+// ── 编辑器 ──
+const ed=document.getElementById('ed');
+if(ed){
+  ed.addEventListener('keydown',e=>{
+    if(e.key==='Tab'){e.preventDefault();const s=ed.selectionStart;ed.value=ed.value.substring(0,s)+'  '+ed.value.substring(ed.selectionEnd);ed.selectionStart=ed.selectionEnd=s+2;}
+    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();document.getElementById('sf').submit();}
+  });
+  const upd=()=>{
+    const t=ed.value.substring(0,ed.selectionStart), lines=t.split('\n');
+    document.getElementById('cur').textContent=`行${lines.length},列${lines[lines.length-1].length+1}`;
+    document.getElementById('cnt').textContent=`${ed.value.length}字符`;
+  };
+  ed.addEventListener('click',upd); ed.addEventListener('keyup',upd);
+}
+function fmFmt(){
+  if(!ed)return;
+  try{ed.value=JSON.stringify(JSON.parse(ed.value),null,2);toast('已格式化');}
+  catch(e){toast('不是有效 JSON',false);}
+}
+
+// 快捷键已移除，请使用按钮操作
+// 页面加载时恢复粘贴按钮状态
+updatePasteUI();
 </script>
 {% endblock %}

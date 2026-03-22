@@ -193,3 +193,64 @@ def get_root(service: str) -> str:
 def is_text_file(filename: str) -> bool:
     _, ext = os.path.splitext(filename.lower())
     return ext in TEXT_EXTS or "." not in filename
+
+
+def move_path(username: str, service: str, src: str, dst: str) -> Dict:
+    out, rc = _exec(username, service, f'mv "{src}" "{dst}"')
+    return {"error": out if rc != 0 else ""}
+
+
+def copy_path(username: str, service: str, src: str, dst: str) -> Dict:
+    out, rc = _exec(username, service, f'cp -r "{src}" "{dst}"')
+    return {"error": out if rc != 0 else ""}
+
+
+def rename_path(username: str, service: str, src: str, dst: str) -> Dict:
+    out, rc = _exec(username, service, f'mv "{src}" "{dst}"')
+    return {"error": out if rc != 0 else ""}
+
+
+def extract_archive(username: str, service: str, path: str, dest_dir: str) -> Dict:
+    lpath = path.lower()
+    if lpath.endswith(".zip"):
+        # 用 Python zipfile，路径用 repr() 自动加引号
+        py_code = (
+            f"import zipfile,os;"
+            f"os.makedirs({repr(dest_dir)},exist_ok=True);"
+            f"zipfile.ZipFile({repr(path)}).extractall({repr(dest_dir)})"
+        )
+        out, rc = _exec(username, service, f"python3 -c {repr(py_code)} 2>&1")
+        return {"error": out if rc != 0 else ""}
+    elif lpath.endswith((".tar.gz", ".tgz")):
+        out, rc = _exec(username, service, f"sh -c 'mkdir -p {repr(dest_dir)} && tar -xzf {repr(path)} -C {repr(dest_dir)} 2>&1'")
+    elif lpath.endswith(".tar.bz2"):
+        out, rc = _exec(username, service, f"sh -c 'mkdir -p {repr(dest_dir)} && tar -xjf {repr(path)} -C {repr(dest_dir)} 2>&1'")
+    elif lpath.endswith(".tar"):
+        out, rc = _exec(username, service, f"sh -c 'mkdir -p {repr(dest_dir)} && tar -xf {repr(path)} -C {repr(dest_dir)} 2>&1'")
+    elif lpath.endswith(".gz"):
+        out, rc = _exec(username, service, f"gunzip -kf {repr(path)} 2>&1")
+    else:
+        return {"error": "不支持的格式（支持 zip/tar.gz/tar.bz2/tar/gz）"}
+    return {"error": out if rc != 0 else ""}
+
+
+def compress_path(username: str, service: str, src: str, dest_zip: str) -> Dict:
+    parent = "/".join(src.rstrip("/").split("/")[:-1]) or "/"
+    name   = src.rstrip("/").split("/")[-1]
+    out, rc = _exec(username, service,
+        f'sh -c \'cd "{parent}" && zip -r "{dest_zip}" "{name}" 2>&1\'')
+    return {"error": out if rc != 0 else ""}
+
+
+def get_file_info(username: str, service: str, path: str) -> Dict:
+    out, rc = _exec(username, service,
+        f'sh -c \'stat -c "%s %F %Y" "{path}" 2>&1\'')
+    if rc != 0:
+        return {"error": out}
+    parts = out.strip().split(None, 2)
+    return {
+        "size": int(parts[0]) if parts else 0,
+        "type": parts[1] if len(parts) > 1 else "",
+        "mtime": parts[2] if len(parts) > 2 else "",
+        "error": "",
+    }

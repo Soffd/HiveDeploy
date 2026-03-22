@@ -26,11 +26,14 @@ from .docker_manager import (
     get_all_instances_status, calc_ports, calc_extra_ports,
     pull_and_recreate, pull_and_recreate_single,
     get_pull_progress, get_single_pull_progress,
+    create_single_service_async,
 )
 from .filemanager import (
     list_dir, read_file, write_file, delete_path, make_dir,
     get_shortcuts, get_root, is_text_file,
     download_file, upload_file,
+    move_path, copy_path, rename_path,
+    extract_archive, compress_path,
 )
 from .email_service import send_email, start_expiry_scheduler
 
@@ -111,6 +114,16 @@ def _bootstrap():
         if not cfg:
             db.add(SiteConfig(key="api_token", value=secrets.token_hex(32)))
             db.commit()
+        # public_view_token (用于公开总览页)
+        vcfg = db.query(SiteConfig).filter_by(key="public_view_token").first()
+        if not vcfg:
+            db.add(SiteConfig(key="public_view_token", value=secrets.token_hex(16)))
+            db.commit()
+        # site_name
+        scfg = db.query(SiteConfig).filter_by(key="site_name").first()
+        if not scfg:
+            db.add(SiteConfig(key="site_name", value="Bot Platform"))
+            db.commit()
     finally:
         db.close()
 
@@ -132,6 +145,13 @@ async def login(request: Request, username: str = Form(...), password: str = For
     if not user:
         return templates.TemplateResponse("login.html",
             {"request": request, "error": "用户名或密码错误"}, status_code=401)
+    # 登录时立即检查到期状态
+    if user.expire_at and user.expire_at < datetime.utcnow():
+        from .docker_manager import stop_user_instance
+        try:
+            stop_user_instance(user.username)
+        except Exception:
+            pass
     token = create_access_token({"sub": user.username})
     resp  = RedirectResponse("/dashboard", status_code=302)
     resp.set_cookie("access_token", token, httponly=True, max_age=86400)
@@ -298,6 +318,72 @@ async def restart_instance(user: User = Depends(get_current_user_from_cookie),
     restart_user_instance(user.username)
     return RedirectResponse("/dashboard", status_code=302)
 
+# 单服务启动/停止/重启
+@app.post("/api/instance/start/{service}")
+async def start_single(service: str,
+                       user: User = Depends(get_current_user_from_cookie),
+                       db: Session = Depends(get_db)):
+    if service not in ("astrbot", "napcat"): raise HTTPException(400)
+    inst = db.query(Instance).filter_by(user_id=user.id).first()
+    if not inst: raise HTTPException(404)
+    start_user_instance(user.username, service)
+    return RedirectResponse("/dashboard", status_code=302)
+
+@app.post("/api/instance/stop/{service}")
+async def stop_single(service: str,
+                      user: User = Depends(get_current_user_from_cookie),
+                      db: Session = Depends(get_db)):
+    if service not in ("astrbot", "napcat"): raise HTTPException(400)
+    inst = db.query(Instance).filter_by(user_id=user.id).first()
+    if not inst: raise HTTPException(404)
+    stop_user_instance(user.username, service)
+    return RedirectResponse("/dashboard", status_code=302)
+
+@app.post("/api/instance/restart/{service}")
+async def restart_single(service: str,
+                         user: User = Depends(get_current_user_from_cookie),
+                         db: Session = Depends(get_db)):
+    if service not in ("astrbot", "napcat"): raise HTTPException(400)
+    inst = db.query(Instance).filter_by(user_id=user.id).first()
+    if not inst: raise HTTPException(404)
+    restart_user_instance(user.username, service)
+    return RedirectResponse("/dashboard", status_code=302)
+
+# 单服务创建（无实例时也可用，自动建立实例记录）
+@app.post("/api/instance/create/{service}")
+async def create_single(service: str,
+                        user: User = Depends(get_current_user_from_cookie),
+                        db: Session = Depends(get_db)):
+    if service not in ("astrbot", "napcat"): raise HTTPException(400)
+
+    # 如果没有实例记录，先创建
+    inst = db.query(Instance).filter_by(user_id=user.id).first()
+    if not inst:
+        ports = calc_ports(user.id)
+        inst = Instance(
+            user_id=user.id,
+            astrbot_port=ports["astrbot_web"],
+            napcat_web_port=ports["napcat_web"],
+            napcat_ws_port=ports["napcat_ws"],
+            extra_ports_json="[]",
+            status="creating",
+        )
+        db.add(inst); db.commit()
+
+    extra_ports = json.loads(inst.extra_ports_json or "[]")
+    create_single_service_async(user.username, user.id, service, extra_ports)
+    return JSONResponse({"ok": True})
+
+@app.post("/api/instance/delete/{service}")
+async def delete_single(service: str,
+                        user: User = Depends(get_current_user_from_cookie),
+                        db: Session = Depends(get_db)):
+    if service not in ("astrbot", "napcat"): raise HTTPException(400)
+    inst = db.query(Instance).filter_by(user_id=user.id).first()
+    if not inst: raise HTTPException(404)
+    delete_user_instance(user.username, service)
+    return RedirectResponse("/dashboard", status_code=302)
+
 @app.post("/api/instance/delete")
 async def delete_instance(user: User = Depends(get_current_user_from_cookie),
                           db: Session = Depends(get_db)):
@@ -372,6 +458,25 @@ async def save_extra_ports(request: Request,
 # ════════════════════════════════════════════════════════════
 #  日志
 # ════════════════════════════════════════════════════════════
+@app.get("/api/instance/napcat_token")
+async def get_napcat_token(user: User = Depends(get_current_user_from_cookie)):
+    """提取 NapCat WebUI Token，通过 Docker SDK 获取全量日志"""
+    import re as _re
+    import docker as _docker
+    try:
+        client = _docker.from_env()
+        container = client.containers.get(f"napcat_{user.username}")
+        # 不传 tail 参数 = 全量日志，stream=False 直接返回 bytes
+        logs = container.logs(stream=False, timestamps=False)
+        text = logs.decode("utf-8", errors="replace")
+        matches = _re.findall(r'WebUi Token:\s*([a-f0-9]+)', text, _re.IGNORECASE)
+        if matches:
+            return JSONResponse({"token": matches[-1]})
+    except Exception as e:
+        logger.error(f"获取 NapCat token 失败: {e}")
+    return JSONResponse({"token": None})
+
+
 @app.get("/logs/{service}", response_class=HTMLResponse)
 async def view_logs(service: str, request: Request,
                     user: User = Depends(get_current_user_from_cookie)):
@@ -571,9 +676,71 @@ async def upload(service: str, upload_path: str = Form(...),
     return JSONResponse({"ok": True, "filename": file.filename})
 
 
-# ════════════════════════════════════════════════════════════
-#  服务器监控
-# ════════════════════════════════════════════════════════════
+@app.post("/files/{service}/move")
+async def move_file(service: str, request: Request,
+                    user: User = Depends(get_current_user_from_cookie)):
+    body = await request.json()
+    result = move_path(user.username, service, body["src"], body["dst"])
+    return JSONResponse({"ok": not result["error"], "error": result["error"]})
+
+
+@app.post("/files/{service}/copy")
+async def copy_file(service: str, request: Request,
+                    user: User = Depends(get_current_user_from_cookie)):
+    body = await request.json()
+    result = copy_path(user.username, service, body["src"], body["dst"])
+    return JSONResponse({"ok": not result["error"], "error": result["error"]})
+
+
+@app.post("/files/{service}/rename")
+async def rename_file(service: str, src: str = Form(...), dst: str = Form(...),
+                      user: User = Depends(get_current_user_from_cookie)):
+    result = rename_path(user.username, service, src, dst)
+    if result["error"]:
+        return JSONResponse({"error": result["error"]}, status_code=400)
+    return JSONResponse({"ok": True})
+
+
+@app.post("/files/{service}/extract")
+async def extract_file(service: str, path: str = Form(...),
+                       dest_dir: str = Form(...),
+                       user: User = Depends(get_current_user_from_cookie)):
+    result = extract_archive(user.username, service, path, dest_dir)
+    return JSONResponse({"ok": not result["error"], "error": result["error"]})
+
+
+@app.post("/files/{service}/compress")
+async def compress_file(service: str, src: str = Form(...),
+                        dest_zip: str = Form(...),
+                        user: User = Depends(get_current_user_from_cookie)):
+    result = compress_path(user.username, service, src, dest_zip)
+    return JSONResponse({"ok": not result["error"], "error": result["error"]})
+
+
+@app.get("/files/{service}/preview")
+async def preview_file(service: str, path: str,
+                       user: User = Depends(get_current_user_from_cookie)):
+    """流式预览文件（图片/视频/音频）"""
+    result = download_file(user.username, service, path)
+    if result["error"]:
+        raise HTTPException(400, result["error"])
+    filename = result["filename"].lower()
+    if any(filename.endswith(e) for e in (".jpg",".jpeg",".png",".gif",".webp",".svg",".bmp")):
+        media_type = "image/" + (filename.rsplit(".",1)[-1].replace("jpg","jpeg"))
+    elif any(filename.endswith(e) for e in (".mp4",".webm",".ogg",".mov")):
+        media_type = "video/" + filename.rsplit(".",1)[-1]
+    elif any(filename.endswith(e) for e in (".mp3",".wav",".ogg",".flac",".aac",".m4a")):
+        media_type = "audio/" + filename.rsplit(".",1)[-1]
+    else:
+        media_type = "application/octet-stream"
+    return StreamingResponse(
+        iter([result["data"]]),
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{result["filename"]}"'},
+    )
+
+
+
 @app.get("/api/server/stats")
 async def server_stats(user: User = Depends(get_current_user_from_cookie)):
     mem  = psutil.virtual_memory()
@@ -673,6 +840,10 @@ async def admin_set_expire(user_id: int, request: Request,
     body = await request.json()
     u = db.query(User).filter_by(id=user_id).first()
     if not u: raise HTTPException(404)
+
+    # 必须在修改前记录旧状态
+    was_expired = u.expire_at is not None and u.expire_at < datetime.utcnow()
+
     action = body.get("action")
     if action == "clear":
         u.expire_at = None
@@ -684,7 +855,45 @@ async def admin_set_expire(user_id: int, request: Request,
         base = max(u.expire_at, datetime.utcnow()) if u.expire_at else datetime.utcnow()
         u.expire_at = base + timedelta(days=days)
     db.commit()
+
+    # 续期后（之前已到期，现在未到期）→ 重启容器
+    now_expired = u.expire_at is not None and u.expire_at < datetime.utcnow()
+    if was_expired and not now_expired:
+        try:
+            start_user_instance(u.username)
+            logger.info(f"续期后重启容器: {u.username}")
+        except Exception as e:
+            logger.error(f"续期重启容器失败 {u.username}: {e}")
+    # 手动设置为已过期 → 立即停止容器
+    elif not was_expired and now_expired:
+        try:
+            stop_user_instance(u.username)
+            logger.info(f"设置到期后停止容器: {u.username}")
+        except Exception as e:
+            logger.error(f"设置到期停止容器失败 {u.username}: {e}")
+
     return JSONResponse({"ok": True, "expire_at": u.expire_at.strftime("%Y-%m-%d") if u.expire_at else None})
+
+
+@app.post("/admin/run_expiry_check")
+async def admin_run_expiry_check(user: User = Depends(require_admin),
+                                  db: Session = Depends(get_db)):
+    """手动触发到期检查（调试用）"""
+    from .email_service import check_and_enforce_expiry
+    now = datetime.utcnow()
+    users = db.query(User).filter(User.expire_at != None).all()
+    report = []
+    for u in users:
+        delta = u.expire_at - now
+        report.append({
+            "username": u.username,
+            "expire_at": u.expire_at.strftime("%Y-%m-%d %H:%M"),
+            "days_left": delta.days,
+            "expired": delta.days < 0,
+        })
+    check_and_enforce_expiry(db)
+    return JSONResponse({"users": report, "check_triggered": True})
+
 
 @app.post("/admin/instance/{user_id}/restart")
 async def admin_restart_instance(user_id: int, user: User = Depends(require_admin),
@@ -848,7 +1057,179 @@ async def aggregate_nodes(user: User = Depends(require_admin),
 
 
 # ── 对外状态接口 ─────────────────────────────────────────────
+
 @app.get("/api/v1/status")
+async def api_v1_status(request: Request, db: Session = Depends(get_db)):
+    """节点间互调的状态接口，Bearer Token 鉴权"""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Unauthorized")
+    token = auth[7:]
+    cfg = db.query(SiteConfig).filter_by(key="api_token").first()
+    if not cfg or cfg.value != token:
+        raise HTTPException(401, "Invalid token")
+
+    users    = db.query(User).filter_by(is_active=True).count()
+    inst_cnt = db.query(Instance).count()
+    all_stat = get_all_instances_status()
+    instances = []
+    for u in db.query(User).all():
+        if u.instance:
+            st = all_stat.get(u.username, {})
+            instances.append({
+                "username": u.username,
+                "astrbot":  st.get("astrbot", "unknown"),
+                "napcat":   st.get("napcat",  "unknown"),
+                "expire_at": u.expire_at.strftime("%Y-%m-%d") if u.expire_at else None,
+            })
+    mem = psutil.virtual_memory()
+    return JSONResponse({
+        "server_name":    os.environ.get("SITE_NAME", HOST),
+        "user_count":     users,
+        "instance_count": inst_cnt,
+        "cpu_percent":    psutil.cpu_percent(interval=0.3),
+        "mem_percent":    mem.percent,
+        "mem_used":       mem.used,
+        "mem_total":      mem.total,
+        "instances":      instances,
+    })
+
+
+@app.get("/status", response_class=HTMLResponse)
+async def public_status_page(request: Request, token: str = "",
+                              db: Session = Depends(get_db)):
+    """公开总览页面，需要 view token"""
+    vcfg = db.query(SiteConfig).filter_by(key="public_view_token").first()
+    valid = vcfg and token == vcfg.value
+    scfg = db.query(SiteConfig).filter_by(key="site_name").first()
+    site_name = scfg.value if scfg else "Bot Platform"
+    return templates.TemplateResponse("public_status.html", {
+        "request": request,
+        "valid": valid,
+        "token": token,
+        "site_name": site_name,
+    })
+
+
+@app.get("/api/public/stats")
+async def public_stats_api(token: str = "", db: Session = Depends(get_db)):
+    """公开聚合数据接口，需要 view token"""
+    vcfg = db.query(SiteConfig).filter_by(key="public_view_token").first()
+    if not vcfg or token != vcfg.value:
+        raise HTTPException(401, "Invalid token")
+
+    results = []
+    # 本地数据
+    local_users = db.query(User).filter_by(is_active=True).count()
+    local_inst  = db.query(Instance).count()
+    all_stat    = get_all_instances_status()
+    running_ab  = sum(1 for s in all_stat.values() if s.get("astrbot") == "running")
+    running_nc  = sum(1 for s in all_stat.values() if s.get("napcat") == "running")
+    mem  = psutil.virtual_memory()
+    disk = psutil.disk_usage("/")
+    scfg = db.query(SiteConfig).filter_by(key="site_name").first()
+    results.append({
+        "name":            scfg.value if scfg else os.environ.get("SITE_NAME", "本服务器"),
+        "url":             f"https://{HOST}",
+        "user_count":      local_users,
+        "instance_count":  local_inst,
+        "running_astrbot": running_ab,
+        "running_napcat":  running_nc,
+        "cpu_percent":     psutil.cpu_percent(interval=0.3),
+        "mem_percent":     mem.percent,
+        "mem_used":        mem.used,
+        "mem_total":       mem.total,
+        "disk_percent":    disk.percent,
+        "disk_used":       disk.used,
+        "disk_total":      disk.total,
+        "error":           None,
+    })
+
+    # 远程节点
+    nodes = db.query(ServerNode).all()
+    for node in nodes:
+        try:
+            req = urllib.request.Request(
+                f"{node.url}/api/v1/status",
+                headers={"Authorization": f"Bearer {node.api_token}"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as r:
+                data = json.loads(r.read())
+            results.append({
+                "name":            node.name,
+                "url":             node.url,
+                "user_count":      data.get("user_count", 0),
+                "instance_count":  data.get("instance_count", 0),
+                "running_astrbot": sum(1 for i in data.get("instances",[]) if i.get("astrbot")=="running"),
+                "running_napcat":  sum(1 for i in data.get("instances",[]) if i.get("napcat")=="running"),
+                "cpu_percent":     data.get("cpu_percent", 0),
+                "mem_percent":     data.get("mem_percent", 0),
+                "mem_used":        0, "mem_total":  0,
+                "disk_percent":    0, "disk_used":  0, "disk_total": 0,
+                "error":           None,
+            })
+        except Exception as e:
+            results.append({
+                "name": node.name, "url": node.url,
+                "user_count": 0, "instance_count": 0,
+                "running_astrbot": 0, "running_napcat": 0,
+                "cpu_percent": 0, "mem_percent": 0,
+                "mem_used": 0, "mem_total": 0,
+                "disk_percent": 0, "disk_used": 0, "disk_total": 0,
+                "error": str(e),
+            })
+
+    total_users = sum(n["user_count"] for n in results)
+    total_inst  = sum(n["instance_count"] for n in results)
+    total_ab    = sum(n["running_astrbot"] for n in results)
+    total_nc    = sum(n["running_napcat"] for n in results)
+
+    return JSONResponse({
+        "nodes":       results,
+        "total_users": total_users,
+        "total_inst":  total_inst,
+        "total_ab":    total_ab,
+        "total_nc":    total_nc,
+    })
+
+
+# 管理员设置公开总览
+@app.get("/admin/public_status", response_class=HTMLResponse)
+async def admin_public_status_page(request: Request, user: User = Depends(require_admin),
+                                    db: Session = Depends(get_db)):
+    vcfg = db.query(SiteConfig).filter_by(key="public_view_token").first()
+    scfg = db.query(SiteConfig).filter_by(key="site_name").first()
+    return templates.TemplateResponse("admin_public_status.html", {
+        "request": request, "user": user,
+        "view_token": vcfg.value if vcfg else "",
+        "site_name": scfg.value if scfg else "Bot Platform",
+        "host": HOST,
+    })
+
+@app.post("/admin/public_status")
+async def admin_public_status_save(
+    site_name: str = Form("Bot Platform"),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    for key, val in [("site_name", site_name)]:
+        cfg = db.query(SiteConfig).filter_by(key=key).first()
+        if cfg: cfg.value = val
+        else: db.add(SiteConfig(key=key, value=val))
+    db.commit()
+    return RedirectResponse("/admin/public_status?saved=1", 302)
+
+@app.post("/admin/public_status/regen_token")
+async def regen_view_token(user: User = Depends(require_admin),
+                            db: Session = Depends(get_db)):
+    cfg = db.query(SiteConfig).filter_by(key="public_view_token").first()
+    new_token = secrets.token_hex(16)
+    if cfg: cfg.value = new_token
+    else: db.add(SiteConfig(key="public_view_token", value=new_token))
+    db.commit()
+    return RedirectResponse("/admin/public_status?regen=1", 302)
+
+
 async def public_status(request: Request, db: Session = Depends(get_db)):
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):

@@ -3,7 +3,8 @@ import os
 import json
 import logging
 import threading
-from typing import Dict, Any, List
+import time
+from typing import Dict, Any, List, Optional, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +13,79 @@ BOT_NETWORK   = os.environ.get("BOT_NETWORK", "bot_user_net")
 ASTRBOT_IMAGE = "soulter/astrbot:latest"
 NAPCAT_IMAGE  = "mlikiowa/napcat-docker:latest"
 PORT_BASE     = int(os.environ.get("INSTANCE_PORT_BASE", "20000"))
+PANEL_HOST    = os.environ.get("PLATFORM_HOST", "localhost")
+
+# 镜像源列表，优先官方，失败后依次尝试加速源
+# 格式：None = 官方 docker.io，字符串 = 镜像加速前缀
+IMAGE_REGISTRIES = [
+    None,                               # 官方源 docker.io
+    "docker.1ms.run",                   # 1ms 加速
+    "docker.m.daocloud.io",             # DaoCloud
+    "docker.kubesre.xyz",               # KubeSRE
+    "mirror.aliyuncs.com",              # 阿里云
+    "docker.mirrors.ustc.edu.cn",       # 中科大
+    "hub-mirror.c.163.com",             # 网易
+    "registry.docker-cn.com",           # Docker 官方中国
+]
+
+def _mirror_image(image: str, registry: Optional[str]) -> str:
+    """将镜像名转换为使用指定镜像源的地址"""
+    if registry is None:
+        return image  # 官方源，不做转换
+    # image 格式：user/repo:tag 或 library/repo:tag
+    # 转换为 registry/user/repo:tag
+    return f"{registry}/{image}"
+
+
+def pull_with_fallback(client, image: str, progress_cb: Callable[[str, str], None]) -> str:
+    """
+    尝试从多个镜像源拉取镜像，返回成功拉取的镜像名（可能是加速源地址）。
+    progress_cb(step, detail) 用于汇报进度。
+    """
+    last_error = None
+    for i, registry in enumerate(IMAGE_REGISTRIES):
+        mirror_img = _mirror_image(image, registry)
+        source_name = registry or "官方源 (docker.io)"
+        try:
+            progress_cb(f"正在从 {source_name} 拉取镜像...", "")
+            logger.info(f"尝试拉取 {mirror_img} (源: {source_name})")
+            for line in client.api.pull(mirror_img, stream=True, decode=True):
+                st   = line.get("status", "")
+                prog = line.get("progressDetail", {})
+                cur, tot = prog.get("current", 0), prog.get("total", 0)
+                if tot and cur:
+                    detail = f"{st} {int(cur/tot*100)}%  ({cur//1024//1024}MB/{tot//1024//1024}MB)"
+                else:
+                    detail = st
+                progress_cb(f"正在从 {source_name} 拉取镜像...", detail)
+                # 检测明显的网络错误，提前放弃
+                err_msg = line.get("error", "")
+                if err_msg and any(k in err_msg.lower() for k in
+                                   ["timeout", "connection refused", "no route", "dial tcp",
+                                    "i/o timeout", "network", "tls", "certificate"]):
+                    raise Exception(err_msg)
+
+            # 如果用了加速源，给本地打原始 tag 方便容器引用
+            if registry is not None:
+                progress_cb(f"重新标记镜像...", "")
+                try:
+                    client.api.tag(mirror_img, image)
+                except Exception:
+                    pass  # tag 失败不影响使用
+
+            logger.info(f"拉取成功: {mirror_img}")
+            return mirror_img
+
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(f"从 {source_name} 拉取失败: {e}")
+            if i < len(IMAGE_REGISTRIES) - 1:
+                progress_cb(f"源 {source_name} 失败，切换下一个源...", str(e)[:80])
+                time.sleep(1)  # 短暂等待后重试
+
+    raise Exception(f"所有镜像源均拉取失败，最后错误: {last_error}")
+
+PANEL_NETWORK = os.environ.get("PANEL_NETWORK", "bot_panel_net")
 
 _creation_progress: Dict[str, Dict] = {}
 _pull_progress: Dict[str, Dict] = {}
@@ -27,6 +101,16 @@ def get_client():
     if _client is None:
         raise RuntimeError("Docker 客户端未初始化")
     return _client
+
+
+
+def _traefik_labels(username: str, service: str, container_port: int) -> dict:
+    """返回容器基础 labels（不启用 Traefik 路由，用端口直接访问）"""
+    return {
+        "bot_platform": "true",
+        "platform_user": username,
+        "platform_service": service,
+    }
 
 
 def ensure_user_network():
@@ -142,15 +226,13 @@ def _create_instance_background(username: str, user_id: int, extra_ports: List[D
             except docker.errors.NotFound:
                 pass
 
-        # 拉取镜像
+        # 拉取镜像（自动多源重试）
         for image, label in [(NAPCAT_IMAGE, "NapCat"), (ASTRBOT_IMAGE, "AstrBot")]:
             _set_progress(username, f"正在拉取 {label} 镜像...", "这可能需要几分钟")
-            for line in client.api.pull(image, stream=True, decode=True):
-                st = line.get("status", "")
-                prog = line.get("progressDetail", {})
-                cur, tot = prog.get("current", 0), prog.get("total", 0)
-                detail = f"{st} {int(cur/tot*100)}%  ({cur//1024//1024}MB/{tot//1024//1024}MB)" if tot and cur else st
-                _set_progress(username, f"正在拉取 {label} 镜像...", detail)
+            pull_with_fallback(
+                client, image,
+                lambda step, detail, _l=label: _set_progress(username, step or f"正在拉取 {_l} 镜像...", detail)
+            )
 
         # AstrBot 弹性端口
         ab_extra = {f"{ep['container_port']}/tcp": ep["host_port"] for ep in extra_ports if ep.get("service") == "astrbot"}
@@ -165,7 +247,7 @@ def _create_instance_background(username: str, user_id: int, extra_ports: List[D
             ports=napcat_ports,
             volumes={napcat_dir: {"bind": "/root/.config/QQ", "mode": "rw"}},
             environment={"NAPCAT_WS_PORT": "3001", "WEBUI_PORT": "6099"},
-            labels={"bot_platform": "true", "platform_user": username, "platform_service": "napcat"},
+            labels=_traefik_labels(username, "napcat", 6099),
             detach=True, restart_policy={"Name": "unless-stopped"},
         )
 
@@ -178,7 +260,7 @@ def _create_instance_background(username: str, user_id: int, extra_ports: List[D
             ports=astrbot_ports,
             volumes={astrbot_dir: {"bind": "/AstrBot/data", "mode": "rw"}},
             environment={"ASTRBOT_PORT": "6185"},
-            labels={"bot_platform": "true", "platform_user": username, "platform_service": "astrbot"},
+            labels=_traefik_labels(username, "astrbot", 6185),
             detach=True, restart_policy={"Name": "unless-stopped"},
         )
 
@@ -201,6 +283,81 @@ def create_user_instance_async(username: str, user_id: int, callback, extra_port
     t.start()
 
 
+def create_single_service_async(username: str, user_id: int, service: str, extra_ports: List[Dict] = None):
+    """单独创建 astrbot 或 napcat 容器"""
+    key = f"{username}:{service}"
+    extra_ports = extra_ports or []
+    label = "AstrBot" if service == "astrbot" else "NapCat"
+
+    def _run():
+        client = get_client()
+        try:
+            ensure_user_network()
+            ports = calc_ports(user_id)
+            data_dir = os.path.join(DATA_DIR, username)
+
+            # 停止并删除旧容器（如有）
+            try:
+                old = client.containers.get(f"{service}_{username}")
+                old.stop(timeout=5); old.remove()
+            except docker.errors.NotFound:
+                pass
+
+            _set_progress(username, f"正在拉取 {label} 镜像...")
+
+            if service == "napcat":
+                image = NAPCAT_IMAGE
+                napcat_dir = os.path.join(data_dir, "napcat")
+                os.makedirs(napcat_dir, exist_ok=True)
+                write_napcat_config(napcat_dir, username)
+                pull_with_fallback(
+                    client, image,
+                    lambda step, detail, _l=label: _set_progress(username, step or f"正在拉取 {_l} 镜像...", detail)
+                )
+                nc_extra = {f"{ep['container_port']}/tcp": ep["host_port"] for ep in extra_ports if ep.get("service") == "napcat"}
+                napcat_ports = {"6099/tcp": ports["napcat_web"], "3001/tcp": ports["napcat_ws"]}
+                napcat_ports.update(nc_extra)
+                client.containers.run(
+                    NAPCAT_IMAGE, name=f"napcat_{username}",
+                    network=BOT_NETWORK, hostname=f"napcat_{username}",
+                    ports=napcat_ports,
+                    volumes={napcat_dir: {"bind": "/root/.config/QQ", "mode": "rw"}},
+                    environment={"NAPCAT_WS_PORT": "3001", "WEBUI_PORT": "6099"},
+                    labels=_traefik_labels(username, "napcat", 6099),
+                    detach=True, restart_policy={"Name": "unless-stopped"},
+                )
+            else:
+                image = ASTRBOT_IMAGE
+                astrbot_dir = os.path.join(data_dir, "astrbot")
+                os.makedirs(astrbot_dir, exist_ok=True)
+                write_astrbot_config(astrbot_dir, username)
+                pull_with_fallback(
+                    client, image,
+                    lambda step, detail, _l=label: _set_progress(username, step or f"正在拉取 {_l} 镜像...", detail)
+                )
+                ab_extra = {f"{ep['container_port']}/tcp": ep["host_port"] for ep in extra_ports if ep.get("service") == "astrbot"}
+                astrbot_ports = {"6185/tcp": ports["astrbot_web"]}
+                astrbot_ports.update(ab_extra)
+                client.containers.run(
+                    ASTRBOT_IMAGE, name=f"astrbot_{username}",
+                    network=BOT_NETWORK, hostname=f"astrbot_{username}",
+                    ports=astrbot_ports,
+                    volumes={astrbot_dir: {"bind": "/AstrBot/data", "mode": "rw"}},
+                    environment={"ASTRBOT_PORT": "6185"},
+                    labels=_traefik_labels(username, "astrbot", 6185),
+                    detach=True, restart_policy={"Name": "unless-stopped"},
+                )
+
+            _set_progress(username, f"{label} 创建完成！", done=True)
+
+        except Exception as e:
+            logger.exception(f"单服务创建失败: {username}/{service}")
+            _set_progress(username, f"{label} 创建失败", error=str(e))
+
+    _set_progress(username, f"初始化 {label}...")
+    threading.Thread(target=_run, daemon=True).start()
+
+
 def _recreate_containers(client, username: str, user_id: int, extra_ports: List[Dict]):
     """重建两个容器（使用当前镜像，保留数据）"""
     ports = calc_ports(user_id)
@@ -217,7 +374,7 @@ def _recreate_containers(client, username: str, user_id: int, extra_ports: List[
         ports=napcat_ports,
         volumes={os.path.join(data_dir, "napcat"): {"bind": "/root/.config/QQ", "mode": "rw"}},
         environment={"NAPCAT_WS_PORT": "3001", "WEBUI_PORT": "6099"},
-        labels={"bot_platform": "true", "platform_user": username, "platform_service": "napcat"},
+        labels=_traefik_labels(username, "napcat", 6099),
         detach=True, restart_policy={"Name": "unless-stopped"},
     )
 
@@ -229,7 +386,7 @@ def _recreate_containers(client, username: str, user_id: int, extra_ports: List[
         ports=astrbot_ports,
         volumes={os.path.join(data_dir, "astrbot"): {"bind": "/AstrBot/data", "mode": "rw"}},
         environment={"ASTRBOT_PORT": "6185"},
-        labels={"bot_platform": "true", "platform_user": username, "platform_service": "astrbot"},
+        labels=_traefik_labels(username, "astrbot", 6185),
         detach=True, restart_policy={"Name": "unless-stopped"},
     )
 
@@ -244,12 +401,10 @@ def pull_and_recreate(username: str, user_id: int, extra_ports: List[Dict] = Non
         try:
             for image, label in [(NAPCAT_IMAGE, "NapCat"), (ASTRBOT_IMAGE, "AstrBot")]:
                 _set_pull_progress(key, f"正在拉取 {label} 最新镜像...")
-                for line in client.api.pull(image, stream=True, decode=True):
-                    st = line.get("status", "")
-                    prog = line.get("progressDetail", {})
-                    cur, tot = prog.get("current", 0), prog.get("total", 0)
-                    detail = f"{st} {int(cur/tot*100)}%  ({cur//1024//1024}MB/{tot//1024//1024}MB)" if tot and cur else st
-                    _set_pull_progress(key, f"正在拉取 {label} 最新镜像...", detail)
+                pull_with_fallback(
+                    client, image,
+                    lambda step, detail, _k=key, _l=label: _set_pull_progress(_k, step or f"正在拉取 {_l} 最新镜像...", detail)
+                )
 
             _set_pull_progress(key, "停止并删除旧容器...")
             stop_user_instance(username)
@@ -282,12 +437,10 @@ def pull_and_recreate_single(username: str, user_id: int, service: str, extra_po
         client = get_client()
         try:
             _set_pull_progress(key, f"正在拉取 {label} 最新镜像...")
-            for line in client.api.pull(image, stream=True, decode=True):
-                st = line.get("status", "")
-                prog = line.get("progressDetail", {})
-                cur, tot = prog.get("current", 0), prog.get("total", 0)
-                detail = f"{st} {int(cur/tot*100)}%  ({cur//1024//1024}MB/{tot//1024//1024}MB)" if tot and cur else st
-                _set_pull_progress(key, f"正在拉取 {label} 最新镜像...", detail)
+            pull_with_fallback(
+                client, image,
+                lambda step, detail, _k=key, _l=label: _set_pull_progress(_k, step or f"正在拉取 {_l} 最新镜像...", detail)
+            )
 
             _set_pull_progress(key, f"停止并删除旧 {label} 容器...")
             container_name = f"{service}_{username}"
@@ -312,7 +465,7 @@ def pull_and_recreate_single(username: str, user_id: int, service: str, extra_po
                     ports=napcat_ports,
                     volumes={os.path.join(data_dir, "napcat"): {"bind": "/root/.config/QQ", "mode": "rw"}},
                     environment={"NAPCAT_WS_PORT": "3001", "WEBUI_PORT": "6099"},
-                    labels={"bot_platform": "true", "platform_user": username, "platform_service": "napcat"},
+                    labels=_traefik_labels(username, "napcat", 6099),
                     detach=True, restart_policy={"Name": "unless-stopped"},
                 )
             else:
@@ -325,7 +478,7 @@ def pull_and_recreate_single(username: str, user_id: int, service: str, extra_po
                     ports=astrbot_ports,
                     volumes={os.path.join(data_dir, "astrbot"): {"bind": "/AstrBot/data", "mode": "rw"}},
                     environment={"ASTRBOT_PORT": "6185"},
-                    labels={"bot_platform": "true", "platform_user": username, "platform_service": "astrbot"},
+                    labels=_traefik_labels(username, "astrbot", 6185),
                     detach=True, restart_policy={"Name": "unless-stopped"},
                 )
 
@@ -339,36 +492,43 @@ def pull_and_recreate_single(username: str, user_id: int, service: str, extra_po
     threading.Thread(target=_run, daemon=True).start()
 
 
-def stop_user_instance(username: str):
+def stop_user_instance(username: str, service: str = None):
+    """停止容器。service 为 None 时停止全部，否则只停止指定服务"""
     client = get_client()
-    for name in [f"napcat_{username}", f"astrbot_{username}"]:
+    names = [f"{service}_{username}"] if service else [f"napcat_{username}", f"astrbot_{username}"]
+    for name in names:
         try:
             client.containers.get(name).stop(timeout=10)
         except docker.errors.NotFound:
             pass
 
 
-def start_user_instance(username: str):
+def start_user_instance(username: str, service: str = None):
+    """启动容器。service 为 None 时启动全部，否则只启动指定服务"""
     client = get_client()
-    for name in [f"astrbot_{username}", f"napcat_{username}"]:
+    names = [f"{service}_{username}"] if service else [f"astrbot_{username}", f"napcat_{username}"]
+    for name in names:
         try:
             client.containers.get(name).start()
         except docker.errors.NotFound:
             pass
 
 
-def restart_user_instance(username: str):
+def restart_user_instance(username: str, service: str = None):
+    """重启容器。service 为 None 时重启全部，否则只重启指定服务"""
     client = get_client()
-    for name in [f"napcat_{username}", f"astrbot_{username}"]:
+    names = [f"{service}_{username}"] if service else [f"napcat_{username}", f"astrbot_{username}"]
+    for name in names:
         try:
             client.containers.get(name).restart(timeout=10)
         except docker.errors.NotFound:
             pass
 
 
-def delete_user_instance(username: str):
+def delete_user_instance(username: str, service: str = None):
     client = get_client()
-    for name in [f"napcat_{username}", f"astrbot_{username}"]:
+    names = [f"{service}_{username}"] if service else [f"napcat_{username}", f"astrbot_{username}"]
+    for name in names:
         try:
             c = client.containers.get(name)
             c.stop(timeout=5); c.remove(force=True)

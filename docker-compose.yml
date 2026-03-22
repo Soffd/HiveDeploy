@@ -3,6 +3,8 @@ services:
     build: ./panel
     container_name: bot_panel
     restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
     environment:
       - SECRET_KEY=${SECRET_KEY:-change_this_secret_key_in_production}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
@@ -24,6 +26,20 @@ services:
       - "traefik.http.routers.panel.entrypoints=websecure"
       - "traefik.http.routers.panel.tls=true"
       - "traefik.http.services.panel.loadbalancer.server.port=3000"
+      # CORS 中间件
+      - "traefik.http.middlewares.panel-cors.headers.accesscontrolalloworiginlist=http://status.yusolab.com,https://status.yusolab.com"
+      - "traefik.http.middlewares.panel-cors.headers.accesscontrolallowmethods=GET,POST,OPTIONS"
+      - "traefik.http.middlewares.panel-cors.headers.accesscontrolallowheaders=Authorization,Content-Type"
+      - "traefik.http.middlewares.panel-cors.headers.accesscontrolmaxage=3600"
+      - "traefik.http.middlewares.panel-cors.headers.addvaryheader=true"
+      - "traefik.http.routers.panel.middlewares=panel-cors"
+      # OPTIONS 预检请求单独处理（直接返回 200）
+      - "traefik.http.routers.panel-options.rule=Host(`bot1.yusolab.com`) && Method(`OPTIONS`)"
+      - "traefik.http.routers.panel-options.entrypoints=websecure"
+      - "traefik.http.routers.panel-options.tls=true"
+      - "traefik.http.routers.panel-options.middlewares=panel-cors"
+      - "traefik.http.routers.panel-options.service=noop@internal"
+      - "traefik.http.routers.panel-options.priority=10"
 
   traefik:
     image: traefik:latest
@@ -50,6 +66,7 @@ services:
       - ./traefik/certs:/certs:ro
     networks:
       - bot_panel_net
+      - bot_user_net
 
 volumes:
   bot_panel_db:

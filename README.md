@@ -1,4 +1,4 @@
-# 🤖 HiveDeploy — 多租户机器人托管平台
+# 🤖 Bot Platform — 多租户机器人托管平台
 
 基于 **AstrBot + NapCat + Docker** 的共享机器人框架服务器。
 支持多用户独立实例、一键创建、WebUI 管理、文件管理、实时日志。
@@ -107,6 +107,8 @@ services:
     build: ./panel
     container_name: bot_panel
     restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
     environment:
       - SECRET_KEY=${SECRET_KEY:-change_this_secret_key_in_production}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
@@ -124,13 +126,25 @@ services:
       - bot_panel_net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.panel.rule=Host(`你的域名.com`)"
+      - "traefik.http.routers.panel.rule=Host(`你的域名`)"
       - "traefik.http.routers.panel.entrypoints=websecure"
       - "traefik.http.routers.panel.tls=true"
       - "traefik.http.services.panel.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.panel-cors.headers.accesscontrolalloworiginlist=http://status.yusolab.com,https://status.yusolab.com"
+      - "traefik.http.middlewares.panel-cors.headers.accesscontrolallowmethods=GET,POST,OPTIONS"
+      - "traefik.http.middlewares.panel-cors.headers.accesscontrolallowheaders=Authorization,Content-Type"
+      - "traefik.http.middlewares.panel-cors.headers.accesscontrolmaxage=3600"
+      - "traefik.http.middlewares.panel-cors.headers.addvaryheader=true"
+      - "traefik.http.routers.panel.middlewares=panel-cors"
+      - "traefik.http.routers.panel-options.rule=Host(`你的域名`) && Method(`OPTIONS`)"
+      - "traefik.http.routers.panel-options.entrypoints=websecure"
+      - "traefik.http.routers.panel-options.tls=true"
+      - "traefik.http.routers.panel-options.middlewares=panel-cors"
+      - "traefik.http.routers.panel-options.service=noop@internal"
+      - "traefik.http.routers.panel-options.priority=10"
 
   traefik:
-    image: traefik:v3.0
+    image: traefik:latest
     container_name: bot_traefik
     restart: unless-stopped
     command:
@@ -154,6 +168,7 @@ services:
       - ./traefik/certs:/certs:ro
     networks:
       - bot_panel_net
+      - bot_user_net
 
 volumes:
   bot_panel_db:
@@ -273,3 +288,39 @@ bash scripts/reset_admin.sh
 ```
 
 脚本会列出所有管理员账号，输入用户名和新密码即可重置，无需停止服务。
+
+## 打包
+cd /www/wwwroot
+
+# 确认没有敏感信息残留
+echo "=== 检查域名残留 ===" && grep -r "yusolab\|你的域名" shared-bot-platform/ --include="*.yml" --include="*.html" --include="*.py" && echo "有残留！" || echo "无残留 ✓"
+echo "=== 检查 .env 不被打包 ===" && ls shared-bot-platform/.env 2>/dev/null && echo "警告：.env 存在，会被排除" || echo ".env 不存在 ✓"
+echo "=== 检查证书目录 ===" && ls shared-bot-platform/traefik/certs/
+echo "=== 检查 create_async 残留 ===" && grep -r "create_async" shared-bot-platform/panel/ && echo "有残留！" || echo "无残留 ✓"
+echo "=== 检查 bcrypt 版本锁定 ===" && grep "bcrypt" shared-bot-platform/panel/requirements.txt
+
+# 打包（排除敏感/运行时文件）
+tar --exclude='shared-bot-platform/.env' \
+    --exclude='shared-bot-platform/data' \
+    --exclude='shared-bot-platform/backups' \
+    --exclude='shared-bot-platform/__pycache__' \
+    --exclude='shared-bot-platform/panel/app/__pycache__' \
+    --exclude='shared-bot-platform/*.db' \
+    -czf shared-bot-platform-release.tar.gz shared-bot-platform/
+
+echo "打包完成: $(du -sh shared-bot-platform-release.tar.gz)"
+
+
+## 更新
+docker cp panel/app/. bot_panel:/app/app/
+docker cp panel/templates/. bot_panel:/app/templates/
+
+# 1. 同步到宿主机源码目录
+docker cp bot_panel:/app/app/. panel/app/
+docker cp bot_panel:/app/templates/. panel/templates/
+
+# 2. 重建镜像（把当前源码打入镜像）
+docker compose build --no-cache panel
+docker compose up -d panel
+
+docker compose build --no-cache panel && docker compose up -d panel

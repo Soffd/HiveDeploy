@@ -1,0 +1,442 @@
+/* ============================================================
+   HiveDeploy 动画与过渡效果
+   ============================================================ */
+
+/* ── 基础过渡 ─────────────────────────────────────────────── */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.btn {
+  transition: all 0.15s ease;
+}
+
+.btn:hover {
+  transform: scale(1.03);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-action {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ── 淡入动画 ─────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.fade-in       { animation: fadeIn     0.35s ease both; }
+.fade-in-up    { animation: fadeInUp   0.4s ease both; }
+.fade-in-down  { animation: fadeInDown 0.4s ease both; }
+.fade-in-left  { animation: fadeInLeft 0.4s ease both; }
+.fade-in-right { animation: fadeInRight 0.4s ease both; }
+.slide-in      { animation: slideIn    0.35s ease both; }
+.scale-in      { animation: scaleIn    0.3s ease both; }
+
+/* ── 表格行交互动画 ───────────────────────────────────────── */
+.table-hover tbody tr {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.table-hover tbody tr:hover {
+  transform: translateX(4px);
+}
+
+/* ── 进度条动画 ───────────────────────────────────────────── */
+.progress-bar {
+  transition: width 0.6s ease;
+}
+.progress-thin {
+  height: 5px;
+  background: #21262d;
+}
+
+/* ── 总览卡片统计块 ──────────────────────────────────────── */
+.stat-block {
+  background: #0d1117;
+  border-radius: 8px;
+}
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.stat-value.stat-blue { color: #58a6ff; }
+.stat-value.stat-green { color: #3fb950; }
+.stat-label {
+  color: #8b949e;
+  font-size: 0.75rem;
+}
+
+/* ── 错误边框 ─────────────────────────────────────────────── */
+.card-border-error {
+  border-color: #f78166 !important;
+}
+
+/* ── 端口徽章 ─────────────────────────────────────────────── */
+.port-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 0.78rem;
+  color: #e6edf3;
+  transition: border-color 0.2s ease;
+}
+
+.port-badge:hover {
+  border-color: #58a6ff;
+}
+
+.port-copy {
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s ease, color 0.2s ease;
+  font-size: 0.85rem;
+}
+
+.port-copy:hover {
+  opacity: 1;
+  color: #58a6ff;
+}
+
+/* ── 资源项卡片 ───────────────────────────────────────────── */
+.res-item {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  text-align: center;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.res-item:hover {
+  border-color: #58a6ff;
+  transform: translateY(-1px);
+}
+
+.res-val {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #e6edf3;
+  transition: color 0.3s ease;
+}
+
+.res-key {
+  font-size: 0.7rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 0.15rem;
+}
+
+/* ── 统计卡片 ─────────────────────────────────────────────── */
+.stat-card {
+  border-left: 3px solid #1f6feb;
+  transition: border-left-color 0.3s ease, transform 0.2s ease;
+}
+
+.stat-card:hover {
+  border-left-color: #58a6ff;
+}
+
+/* ── 标签徽章 (tag-pill) ──────────────────────────────────── */
+.tag-pill {
+  display: inline-block;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 0.12rem 0.5rem;
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 0.75rem;
+  color: #8b949e;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.tag-pill:hover {
+  border-color: #58a6ff;
+  color: #e6edf3;
+}
+
+/* ── 脉冲动画（加载指示） ─────────────────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+.pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* ── 微光扫过效果 ─────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    rgba(88, 166, 255, 0.06) 50%,
+    transparent 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* ── 弹窗动画 ─────────────────────────────────────────────── */
+.modal.fade .modal-dialog {
+  transform: scale(0.92);
+  transition: transform 0.25s ease;
+}
+
+.modal.show .modal-dialog {
+  transform: scale(1);
+}
+
+.modal-content {
+  animation: fadeInUp 0.25s ease both;
+}
+
+/* ── Toast 动画 ───────────────────────────────────────────── */
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.toast-container .toast {
+  animation: toastIn 0.3s ease both;
+}
+
+/* ── 下拉菜单动画 ─────────────────────────────────────────── */
+.dropdown-menu {
+  animation: fadeInDown 0.2s ease both;
+  transform-origin: top center;
+}
+
+/* ── 节点卡片 ─────────────────────────────────────────────── */
+.node-card {
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 1px solid #30363d;
+}
+
+.node-card:hover {
+  border-color: #58a6ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(88, 166, 255, 0.1);
+}
+
+.node-card.selected {
+  border-color: #3fb950 !important;
+  box-shadow: 0 0 0 2px rgba(63, 185, 80, 0.25);
+}
+
+/* ── 续期卡片 ─────────────────────────────────────────────── */
+.renew-card {
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  background: #0d1117;
+}
+
+.renew-card:hover {
+  border-color: #3fb950;
+  box-shadow: 0 0 16px rgba(63, 185, 80, 0.15);
+  transform: translateY(-2px);
+}
+
+.renew-card.selected {
+  border-color: #3fb950 !important;
+  background: rgba(63, 185, 80, 0.08);
+}
+
+/* ── 加载旋转器增强 ───────────────────────────────────────── */
+.spinner-border {
+  animation: spinner-border 0.75s linear infinite;
+}
+
+/* ── 页面切换过渡 ─────────────────────────────────────────── */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+main {
+  animation: pageEnter 0.35s ease both;
+}
+
+/* ── 操作日志徽章 ─────────────────────────────────────────── */
+.log-badge {
+  font-size: 0.68rem;
+}
+.badge-log-self_renew       { background: #3fb950; font-size: .68rem; }
+.badge-log-admin_renew      { background: #58a6ff; font-size: .68rem; }
+.badge-log-register         { background: #d29922; font-size: .68rem; }
+.badge-log-instance_create  { background: #3fb950; font-size: .68rem; }
+.badge-log-instance_delete  { background: #f85149; font-size: .68rem; }
+.badge-log-instance_restart { background: #a371f7; font-size: .68rem; }
+.badge-log-password_change  { background: #db6d28; font-size: .68rem; }
+.badge-log-node_bind        { background: #58a6ff; font-size: .68rem; }
+.badge-log-node_disable     { background: #f85149; font-size: .68rem; }
+.badge-log-node_enable      { background: #3fb950; font-size: .68rem; }
+.badge-log-slot_update      { background: #a371f7; font-size: .68rem; }
+.badge-log-login            { background: #6e7681; font-size: .68rem; }
+.badge-log-logout           { background: #6e7681; font-size: .68rem; }
+.badge-log-other            { background: #6e7681; font-size: .68rem; }
+
+/* ── 容量条 ──────────────────────────────────────────────── */
+.slot-bar-wrapper {
+  height: 6px;
+  background: #21262d;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.slot-bar-inner {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease, background 0.4s ease;
+}
+.slot-bar-safe  { background: #3fb950; }
+.slot-bar-warn  { background: #d29922; }
+.slot-bar-full  { background: #f85149; }
+
+/* ── 节点状态点 ───────────────────────────────────────────── */
+.node-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+.node-status-online  { background: #3fb950; box-shadow: 0 0 6px rgba(63,185,80,.5); }
+.node-status-offline { background: #f85149; }
+.node-status-unknown { background: #6e7681; }
+
+/* ── 扫码支付区 ───────────────────────────────────────────── */
+#payment-modal .modal-content {
+  background: #161b22;
+  border: 1px solid #30363d;
+}
+
+/* ── 减少动画偏好 ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

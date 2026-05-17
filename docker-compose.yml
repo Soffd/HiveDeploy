@@ -6,6 +6,7 @@ services:
     cap_add:
       - NET_ADMIN
     environment:
+      - TZ=Asia/Shanghai
       - SECRET_KEY=${SECRET_KEY:-change_this_secret_key_in_production}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
@@ -15,6 +16,7 @@ services:
       - BOT_NETWORK=bot_user_net
       - INSTANCE_PORT_BASE=${INSTANCE_PORT_BASE:-20000}
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - bot_panel_db:/app/db
       - bot_instances_data:/data/instances
@@ -45,6 +47,8 @@ services:
     image: traefik:latest
     container_name: bot_traefik
     restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
@@ -61,6 +65,7 @@ services:
       - "443:443"
       - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/tls.yml:/etc/traefik/tls.yml:ro
       - ./traefik/certs:/certs:ro

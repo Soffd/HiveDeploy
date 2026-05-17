@@ -1,51 +1,82 @@
 <ul class="nav flex-column gap-1">
   <li><a href="/dashboard" class="nav-link {{ 'active' if request.url.path == '/dashboard' else '' }}">
-    <i class="bi bi-speedometer2 me-2"></i>控制台
+    <i class="bi bi-speedometer2 me-2"></i><span data-i18n="sidebar.dashboard">控制台</span>
   </a></li>
-  <li class="mt-2 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;">日志 &amp; 终端</small></li>
+  <li class="mt-2 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;" data-i18n="sidebar.logs_terminal">日志 & 终端</small></li>
   <li><a href="/logs/astrbot" class="nav-link {{ 'active' if '/logs/astrbot' in request.url.path else '' }}">
-    <i class="bi bi-terminal me-2"></i>AstrBot 日志
+    <i class="bi bi-terminal me-2"></i><span data-i18n="sidebar.astrbot_logs">AstrBot 日志</span>
   </a></li>
   <li><a href="/logs/napcat" class="nav-link {{ 'active' if '/logs/napcat' in request.url.path else '' }}">
-    <i class="bi bi-terminal me-2"></i>NapCat 日志
+    <i class="bi bi-terminal me-2"></i><span data-i18n="sidebar.napcat_logs">NapCat 日志</span>
+  </a></li>
+  <li><a href="/logs/llonebot" class="nav-link {{ 'active' if '/logs/llonebot' in request.url.path else '' }}">
+    <i class="bi bi-terminal me-2"></i><span data-i18n="sidebar.llonebot_logs">LLOneBot 日志</span>
   </a></li>
   <li><a href="/terminal/astrbot" class="nav-link {{ 'active' if '/terminal/astrbot' in request.url.path else '' }}">
-    <i class="bi bi-code-square me-2"></i>AstrBot 终端
+    <i class="bi bi-code-square me-2"></i><span data-i18n="sidebar.astrbot_terminal">AstrBot 终端</span>
   </a></li>
   <li><a href="/terminal/napcat" class="nav-link {{ 'active' if '/terminal/napcat' in request.url.path else '' }}">
-    <i class="bi bi-code-square me-2"></i>NapCat 终端
+    <i class="bi bi-code-square me-2"></i><span data-i18n="sidebar.napcat_terminal">NapCat 终端</span>
   </a></li>
-  <li class="mt-2 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;">文件管理</small></li>
+  <li><a href="/terminal/llonebot" class="nav-link {{ 'active' if '/terminal/llonebot' in request.url.path else '' }}">
+    <i class="bi bi-code-square me-2"></i><span data-i18n="sidebar.llonebot_terminal">LLOneBot 终端</span>
+  </a></li>
+  <li class="mt-2 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;" data-i18n="sidebar.file_management">文件管理</small></li>
   <li><a href="/files/astrbot" class="nav-link {{ 'active' if '/files/astrbot' in request.url.path else '' }}">
-    <i class="bi bi-folder2 me-2"></i>AstrBot 文件
+    <i class="bi bi-folder2 me-2"></i><span data-i18n="sidebar.astrbot_files">AstrBot 文件</span>
   </a></li>
   <li><a href="/files/napcat" class="nav-link {{ 'active' if '/files/napcat' in request.url.path else '' }}">
-    <i class="bi bi-folder2 me-2"></i>NapCat 文件
+    <i class="bi bi-folder2 me-2"></i><span data-i18n="sidebar.napcat_files">NapCat 文件</span>
   </a></li>
-  <li class="mt-2 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;">账号</small></li>
+  <li><a href="/files/llonebot" class="nav-link {{ 'active' if '/files/llonebot' in request.url.path else '' }}">
+    <i class="bi bi-folder2 me-2"></i><span data-i18n="sidebar.llonebot_files">LLOneBot 文件</span>
+  </a></li>
+  <li class="mt-2 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;" data-i18n="sidebar.account">账号</small></li>
   <li><a href="/profile" class="nav-link {{ 'active' if request.url.path == '/profile' else '' }}">
-    <i class="bi bi-person-gear me-2"></i>个人设置
+    <i class="bi bi-person-gear me-2"></i><span data-i18n="sidebar.profile">个人设置</span>
   </a></li>
   {% if user.is_admin %}
-  <li class="mt-2 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;">管理</small></li>
+  <li class="mt-2 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;" data-i18n="sidebar.admin_section">管理</small></li>
   <li><a href="/admin" class="nav-link {{ 'active' if request.url.path == '/admin' else '' }}">
-    <i class="bi bi-shield-lock me-2"></i>管理后台
+    <i class="bi bi-shield-lock me-2"></i><span data-i18n="sidebar.admin_panel">管理后台</span>
+  </a></li>
+  <li><a href="/admin/payment" class="nav-link {{ 'active' if '/admin/payment' in request.url.path else '' }}">
+    <i class="bi bi-credit-card me-2"></i><span data-i18n="sidebar.payment_settings">收款设置</span>
+  </a></li>
+  <li><a href="/admin/announcements" class="nav-link {{ 'active' if '/admin/announcements' in request.url.path else '' }}">
+    <i class="bi bi-megaphone me-2"></i><span data-i18n="sidebar.announcement_settings">公告设置</span>
+  </a></li>
+  <li><a href="/admin/renewals" class="nav-link {{ 'active' if '/admin/renewals' in request.url.path else '' }}">
+    <i class="bi bi-list-check me-2"></i><span data-i18n="sidebar.renewal_records">续期记录</span>
   </a></li>
   <li><a href="/admin/smtp" class="nav-link {{ 'active' if '/admin/smtp' in request.url.path else '' }}">
-    <i class="bi bi-envelope-gear me-2"></i>邮件设置
+    <i class="bi bi-envelope-at me-2"></i><span data-i18n="sidebar.email_settings">邮件设置</span>
+  </a></li>
+  <li><a href="/admin/email-templates" class="nav-link {{ 'active' if '/admin/email-templates' in request.url.path else '' }}">
+    <i class="bi bi-file-earmark-code me-2"></i><span data-i18n="sidebar.email_templates">邮件模板</span>
   </a></li>
   <li><a href="/admin/nodes" class="nav-link {{ 'active' if '/admin/nodes' in request.url.path else '' }}">
-    <i class="bi bi-diagram-3 me-2"></i>节点管理
+    <i class="bi bi-diagram-3 me-2"></i><span data-i18n="sidebar.node_management">节点管理</span>
   </a></li>
   <li><a href="/overview" class="nav-link {{ 'active' if request.url.path == '/overview' else '' }}">
-    <i class="bi bi-globe me-2"></i>多服务器总览
+    <i class="bi bi-globe me-2"></i><span data-i18n="sidebar.server_overview">多服务器总览</span>
   </a></li>
   {% endif %}
-  <li class="mt-3 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;">文档</small></li>
+  <li class="mt-2 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;" data-i18n="sidebar.services">服务</small></li>
+  <li><a href="/renew" class="nav-link {{ 'active' if request.url.path == '/renew' else '' }}">
+    <i class="bi bi-clock-history me-2"></i><span data-i18n="sidebar.self_renewal">自助续期</span>
+  </a></li>
+  <li class="mt-3 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;" data-i18n="sidebar.documentation">文档</small></li>
+  <li><a href="https://www.kiraui.cn/botdocs" target="_blank" class="nav-link">
+    <i class="bi bi-book me-2"></i><span data-i18n="sidebar.hivedeploy_docs">HiveDeploy 文档</span>
+  </a></li>
   <li><a href="https://astrbot.app" target="_blank" class="nav-link">
-    <i class="bi bi-book me-2"></i>AstrBot 文档
+    <i class="bi bi-book me-2"></i><span data-i18n="sidebar.astrbot_docs">AstrBot 文档</span>
   </a></li>
   <li><a href="https://napneko.github.io" target="_blank" class="nav-link">
-    <i class="bi bi-book me-2"></i>NapCat 文档
+    <i class="bi bi-book me-2"></i><span data-i18n="sidebar.napcat_docs">NapCat 文档</span>
+  </a></li>
+  <li><a href="https://www.llonebot.com" target="_blank" class="nav-link">
+    <i class="bi bi-book me-2"></i><span data-i18n="sidebar.llonebot_docs">LLOneBot 文档</span>
   </a></li>
 </ul>

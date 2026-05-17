@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title_i18n %}email_templates.title{% endblock %}
+{% block title %}邮件模板 — HiveDeploy{% endblock %}
+
+{% block head %}
+<style>
+.mailtpl-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 1rem;
+  align-items: start;
+}
+.mailtpl-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+.mailtpl-tab {
+  border: 1px solid var(--border-default);
+  background: rgba(255,255,255,.025);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: .45rem .75rem;
+  font-size: .82rem;
+  cursor: pointer;
+}
+.mailtpl-tab.active {
+  color: var(--accent);
+  border-color: rgba(88,166,255,.4);
+  background: var(--accent-subtle);
+  font-weight: 700;
+}
+.mailtpl-panel { display: none; }
+.mailtpl-panel.active { display: block; }
+.mailtpl-code {
+  min-height: 420px;
+  font-family: 'Cascadia Code','Fira Code',monospace;
+  font-size: .8rem;
+  line-height: 1.5;
+}
+.mailtpl-var-table td,
+.mailtpl-var-table th {
+  font-size: .78rem;
+}
+.mailtpl-var-table code {
+  color: var(--accent);
+}
+@media (max-width: 1100px) {
+  .mailtpl-wrap { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="mb-0 fw-semibold"><i class="bi bi-file-earmark-code me-2"></i><span data-i18n="email_templates.heading">邮件模板</span></h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;" data-i18n="email_templates.subtitle">使用魔法变量自定义系统邮件内容。</p>
+  </div>
+  <a href="/admin/smtp" class="btn btn-sm btn-outline-secondary btn-action">
+    <i class="bi bi-envelope-at me-1"></i><span data-i18n="email_templates.smtp_settings">SMTP 设置</span>
+  </a>
+</div>
+
+{% if request.query_params.get('saved') %}
+<div class="alert alert-success py-2 mb-3"><i class="bi bi-check-circle me-1"></i><span data-i18n="email_templates.saved">邮件模板已保存</span></div>
+{% endif %}
+{% if request.query_params.get('reset') %}
+<div class="alert alert-info py-2 mb-3"><i class="bi bi-arrow-counterclockwise me-1"></i><span data-i18n="email_templates.reset_done">已恢复默认模板</span></div>
+{% endif %}
+
+<div class="mailtpl-wrap">
+  <div>
+    <div class="mailtpl-tabs">
+      {% for tpl in templates %}
+      <button type="button" class="mailtpl-tab {% if loop.first %}active{% endif %}" data-target="tpl-{{ tpl.key }}" onclick="showTpl('{{ tpl.key }}', this)">
+        <span data-i18n="email_templates.template_{{ tpl.key }}">{{ tpl.name }}</span>
+      </button>
+      {% endfor %}
+    </div>
+
+    {% for tpl in templates %}
+    <div class="card mailtpl-panel {% if loop.first %}active{% endif %}" id="tpl-{{ tpl.key }}">
+      <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+        <small class="fw-semibold text-secondary" data-i18n="email_templates.template_{{ tpl.key }}">{{ tpl.name }}</small>
+        <form method="post" action="/admin/email-templates/{{ tpl.key }}/reset"
+              onsubmit="return confirmResetTemplate('{{ tpl.key }}')">
+          <button class="btn btn-sm btn-outline-warning btn-action" type="submit">
+            <i class="bi bi-arrow-counterclockwise me-1"></i><span data-i18n="email_templates.restore_default">恢复默认</span>
+          </button>
+        </form>
+      </div>
+      <div class="card-body">
+        <form method="post" action="/admin/email-templates/{{ tpl.key }}">
+          <label class="form-label" data-i18n="email_templates.email_subject">邮件主题</label>
+          <input class="form-control mb-3" name="subject" value="{{ tpl.subject }}">
+
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <label class="form-label mb-0" data-i18n="email_templates.html_template">HTML 模板</label>
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    onclick="fillDefault('{{ tpl.key }}')">
+              <i class="bi bi-lightning-charge me-1"></i><span data-i18n="email_templates.use_default_fast">快速使用默认模板</span>
+            </button>
+          </div>
+          <textarea class="form-control mailtpl-code" name="body_html" id="body-{{ tpl.key }}" spellcheck="false">{{ tpl.body_html }}</textarea>
+
+          <textarea id="default-body-{{ tpl.key }}" hidden>{{ tpl.default_body_html }}</textarea>
+          <input type="hidden" id="default-subject-{{ tpl.key }}" value="{{ tpl.default_subject }}">
+
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-success btn-action" type="submit">
+              <i class="bi bi-floppy me-1"></i><span data-i18n="email_templates.save_template">保存模板</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <div class="card-header py-2 px-3">
+      <small class="fw-semibold text-secondary"><i class="bi bi-braces me-1"></i><span data-i18n="email_templates.variables_title">魔法变量对照表</span></small>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive" style="max-height:680px;">
+        <table class="table table-dark table-hover mb-0 mailtpl-var-table">
+          <thead>
+            <tr>
+              <th data-i18n="email_templates.var_type">类型</th>
+              <th data-i18n="email_templates.var_name">变量</th>
+              <th data-i18n="email_templates.var_meaning">含义</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set group_keys = {'通用':'common','验证码':'verification','到期通知':'expiry','续期通知':'renewal'} %}
+            {% for group, name, desc in variables %}
+            <tr>
+              <td class="text-secondary" data-i18n="email_templates.group_{{ group_keys.get(group, 'common') }}">{{ group }}</td>
+              <td><code>{{ name }}</code></td>
+              <td class="text-secondary" data-i18n="email_templates.var_desc_{{ loop.index0 }}">{{ desc }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTpl(key, btn) {
+  document.querySelectorAll('.mailtpl-tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.mailtpl-panel').forEach(el => el.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tpl-' + key).classList.add('active');
+}
+
+function fillDefault(key) {
+  if (!confirm(__i('email_templates.confirm_fill_default', '将当前编辑内容替换为默认模板？'))) return;
+  const body = document.getElementById('default-body-' + key).value;
+  const subject = document.getElementById('default-subject-' + key).value;
+  document.querySelector('#tpl-' + key + ' input[name="subject"]').value = subject;
+  document.getElementById('body-' + key).value = body;
+}
+
+function __i(key, fallback) {
+  return window.__i18n ? window.__i18n(key, fallback) : fallback;
+}
+
+function confirmResetTemplate(key) {
+  const name = __i('email_templates.template_' + key, key);
+  return confirm(__i('email_templates.confirm_reset', '确定恢复 {name} 的默认模板？').replace('{name}', name));
+}
+</script>
+{% endblock %}

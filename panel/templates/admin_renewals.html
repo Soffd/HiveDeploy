@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title_i18n %}admin_renewals.title{% endblock %}{% block title %}续期记录 — HiveDeploy{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-semibold"><i class="bi bi-list-check me-2"></i><span data-i18n="admin_renewals.renewal_records">续期记录</span></h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;" data-i18n="admin_renewals.page_desc">用户自助续期操作记录，用于核对收款</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+    <small class="fw-semibold text-secondary"><i class="bi bi-clock-history me-1"></i><span data-i18n="admin_renewals.recent_records">最近 200 条续期记录</span></small>
+    <small class="text-secondary" style="font-size:.75rem;"><span data-i18n="admin_renewals.total_count" data-i18n-params='{"count":"{{ records|length }}"}'>共 {{ records|length }} 条</span></small>
+  </div>
+  {% if records %}
+  <div class="table-responsive">
+    <table class="table table-dark table-hover mb-0" style="font-size:.875rem;">
+      <thead style="border-bottom:1px solid #30363d;">
+        <tr>
+          <th class="px-3 py-2 text-secondary fw-normal" data-i18n="admin_renewals.id_col">ID</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin_renewals.username_col">用户</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin_renewals.days_added_col">续期天数</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin_renewals.previous_expiry_col">原到期时间</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin_renewals.new_expiry_col">新到期时间</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin_renewals.operation_time_col">操作时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td class="px-3 py-2 text-secondary">{{ r.id }}</td>
+          <td class="py-2 fw-semibold">{{ r.username }}</td>
+          <td class="py-2">
+            <span class="badge bg-success" data-i18n="admin_renewals.days_format" data-i18n-params='{"days":"{{ r.days_added }}"}'>+{{ r.days_added }} 天</span>
+          </td>
+          <td class="py-2 text-secondary">
+            {{ r.previous_expire_at.strftime('%Y-%m-%d %H:%M') if r.previous_expire_at else '永久' }}
+          </td>
+          <td class="py-2">
+            <span style="color:#58a6ff;">{{ r.new_expire_at.strftime('%Y-%m-%d %H:%M') if r.new_expire_at else '—' }}</span>
+          </td>
+          <td class="py-2 text-secondary">{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-center text-secondary py-5">
+    <i class="bi bi-inbox" style="font-size:2.5rem;"></i>
+    <p class="mt-2 mb-0" data-i18n="admin_renewals.no_records">暂无续期记录</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="alert alert-info py-2 mt-3" style="font-size:.8rem;">
+  <i class="bi bi-info-circle me-1"></i>
+  <strong data-i18n="admin_renewals.explanation_title">说明：</strong><span data-i18n="admin_renewals.explanation_text">系统不验证支付状态，续期记录仅供参考。请与实际收款记录对照核对。如需退款或撤销续期，请在「管理后台 → 用户管理」中手动调整到期时间。</span>
+</div>
+{% endblock %}

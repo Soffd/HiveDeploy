@@ -3,69 +3,439 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>注册 — Bot Platform</title>
+  <title data-i18n="register.title">注册 — HiveDeploy</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
   <style>
-    body { background: #0d1117; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .auth-card { background: #161b22; border: 1px solid #30363d; border-radius: 16px;
-                 width: 100%; max-width: 420px; padding: 2.5rem; }
-    .brand { color: #58a6ff; font-size: 1.6rem; font-weight: 700; }
-    .form-control { background: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 8px; }
-    .form-control:focus { background: #0d1117; border-color: #58a6ff; color: #e6edf3; box-shadow: 0 0 0 3px rgba(88,166,255,.15); }
-    .btn-primary { background: #238636; border: 1px solid #2ea043; border-radius: 8px; }
-    .btn-primary:hover { background: #2ea043; }
-    label { color: #8b949e; font-size: .875rem; }
-    .divider { border-color: #30363d; }
-    .hint { color: #8b949e; font-size: .78rem; }
+    :root {
+      --bg-default: #0d1117;
+      --bg-card: #161b22;
+      --border-default: #30363d;
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --amber: #d29922;
+      --orange: #f78166;
+      --red: #f85149;
+      --purple: #a371f7;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --transition: 0.2s ease;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background: var(--bg-default);
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-image:
+        radial-gradient(ellipse at 20% 50%, rgba(163,113,247,0.04) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 50%, rgba(63,185,80,0.03) 0%, transparent 60%),
+        radial-gradient(ellipse at 50% 0%, rgba(88,166,255,0.03) 0%, transparent 50%);
+    }
+
+    @keyframes bgPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(circle at 50% 50%, rgba(163,113,247,0.05) 0%, transparent 70%);
+      animation: bgPulse 6s ease-in-out infinite;
+      pointer-events: none; z-index: 0;
+    }
+
+    @keyframes cardFloatIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(163,113,247,0.05), 0 0 0 1px var(--border-default); }
+      50% { box-shadow: 0 0 35px rgba(163,113,247,0.12), 0 0 0 1px rgba(163,113,247,0.25); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes iconFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+
+    @keyframes progressStripe {
+      0% { background-position: 0 0; }
+      100% { background-position: 40px 0; }
+    }
+
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      width: 100%; max-width: 440px;
+      padding: 2.5rem;
+      position: relative; z-index: 1;
+      animation: cardFloatIn 0.5s ease-out, pulseGlow 6s ease-in-out 0.5s infinite;
+    }
+
+    .auth-card::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: 20%; right: 20%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(163,113,247,0.5), transparent);
+    }
+
+    .brand-icon {
+      display: inline-block;
+      animation: iconFloat 3s ease-in-out infinite;
+    }
+
+    .brand {
+      color: var(--purple);
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    .brand-sub {
+      color: var(--text-secondary);
+      font-size: .9rem;
+    }
+
+    .form-control {
+      background: var(--bg-default);
+      border: 1px solid var(--border-default);
+      color: var(--text-primary);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.85rem;
+      font-size: .9rem;
+      transition: all var(--transition);
+    }
+
+    .form-control:focus {
+      background: var(--bg-default);
+      border-color: var(--purple);
+      color: var(--text-primary);
+      box-shadow: 0 0 0 3px rgba(163,113,247,.12), 0 0 15px rgba(163,113,247,0.06);
+    }
+
+    .form-control::placeholder { color: #484f58; }
+
+    .form-label {
+      color: var(--text-secondary);
+      font-size: .85rem;
+      font-weight: 500;
+      margin-bottom: 0.35rem;
+    }
+
+    .hint { color: var(--text-secondary); font-size: .75rem; }
+
+    .btn-primary {
+      background: #238636;
+      border: 1px solid #2ea043;
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 1rem;
+      font-weight: 600;
+      font-size: .9rem;
+      transition: all var(--transition);
+      position: relative; overflow: hidden;
+    }
+
+    .btn-primary:hover {
+      background: #2ea043;
+      border-color: #3fb950;
+      box-shadow: 0 4px 12px rgba(63,185,80,0.25);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-outline-info {
+      border-color: var(--blue);
+      color: var(--blue);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 1rem;
+      font-weight: 500;
+      font-size: .85rem;
+      transition: all var(--transition);
+    }
+
+    .btn-outline-info:hover {
+      background: rgba(88,166,255,0.1);
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .alert {
+      border-radius: var(--radius-sm);
+      font-size: .85rem;
+      animation: fadeInUp 0.3s ease-out;
+    }
+
+    .alert-warning {
+      background: rgba(210,153,34,0.1);
+      border-color: rgba(210,153,34,0.25);
+      color: var(--amber);
+    }
+
+    .alert-danger {
+      background: rgba(248,81,73,0.1);
+      border-color: rgba(248,81,73,0.25);
+      color: var(--red);
+    }
+
+    .link-hover {
+      color: var(--blue);
+      text-decoration: none;
+      transition: all var(--transition);
+      border-bottom: 1px solid transparent;
+    }
+    .link-hover:hover {
+      color: #79b8ff;
+      border-bottom-color: rgba(88,166,255,0.4);
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 0.75rem; top: 50%; transform: translateY(-50%);
+      color: var(--text-secondary);
+      z-index: 5;
+      transition: color var(--transition);
+      pointer-events: none;
+    }
+
+    .has-icon .form-control {
+      padding-left: 2.5rem;
+    }
+
+    .has-icon:focus-within .input-icon {
+      color: var(--purple);
+    }
+
+    /* Capacity bar */
+    .capacity-bar {
+      height: 6px; border-radius: 3px; background: #21262d;
+      overflow: hidden;
+    }
+
+    .capacity-bar .fill {
+      height: 100%; border-radius: 3px;
+      transition: width 0.6s ease;
+      position: relative;
+    }
+
+    .fill-ok {
+      background: linear-gradient(90deg, #3fb950, #56d364);
+      background-size: 200% 100%;
+      animation: progressStripe 2s linear infinite;
+    }
+
+    .fill-warn {
+      background: linear-gradient(90deg, #d29922, #e6b422);
+      background-size: 200% 100%;
+      animation: progressStripe 2s linear infinite;
+    }
+
+    .fill-full {
+      background: linear-gradient(90deg, #f85149, #ff6b6b);
+      background-size: 200% 100%;
+      animation: progressStripe 2s linear infinite;
+    }
+
+    .capacity-label {
+      font-size: .73rem; color: var(--text-secondary);
+    }
+
+    .footer-link {
+      animation: fadeInUp 0.5s ease-out 0.4s both;
+    }
+
+    @media (max-width: 440px) {
+      .auth-card {
+        padding: 1.75rem;
+        border-radius: var(--radius-md);
+        margin: 1rem;
+      }
+      .brand { font-size: 1.4rem; }
+    }
   </style>
 </head>
 <body>
 <div class="auth-card">
-  <div class="text-center mb-4">
-    <div class="brand"><i class="bi bi-person-plus me-2"></i>创建账号</div>
-    <p class="text-secondary mt-1 mb-0" style="font-size:.9rem;">注册后即可获得专属 Bot 实例</p>
+  <div class="text-center mb-4" style="animation: fadeInUp 0.4s ease-out;">
+    <div class="brand">
+      <span class="brand-icon" style="display:inline-block;"><i class="bi bi-person-plus me-2"></i></span><span data-i18n="register.heading">创建账号</span>
+    </div>
+    <p class="brand-sub mt-1 mb-0" data-i18n="register.subtitle">注册后即可获得专属 Bot 实例</p>
   </div>
 
+  {% if closed %}
+  <div class="alert alert-warning py-2 mb-3">
+    {% for e in errors %}
+    <div><i class="bi bi-exclamation-triangle me-1"></i>{{ e }}</div>
+    {% endfor %}
+  </div>
+  <div class="text-center" style="animation: fadeInUp 0.4s ease-out 0.2s both;">
+    <a href="/login" class="btn btn-outline-info btn-sm" data-i18n="register.back_to_login">返回登录</a>
+  </div>
+  {% else %}
   {% if errors %}
-  <div class="alert alert-danger py-2 mb-3" style="font-size:.875rem;">
+  <div class="alert alert-danger py-2 mb-3">
     {% for e in errors %}
     <div><i class="bi bi-exclamation-triangle me-1"></i>{{ e }}</div>
     {% endfor %}
   </div>
   {% endif %}
 
-  <form method="post" action="/register">
+  {% if max_users and max_users > 0 %}
+  <div class="mb-3" style="animation: fadeInUp 0.4s ease-out 0.08s both;">
+    <div class="d-flex justify-content-between mb-1" style="font-size:.75rem;">
+      <span class="text-secondary" data-i18n="register.server_capacity">服务器容量</span>
+      <span class="text-secondary fw-semibold">{{ current }}/{{ max_users }}</span>
+    </div>
+    <div class="capacity-bar">
+      {% set pct = (current / max_users * 100)|int %}
+      {% if pct >= 100 %}
+      <div class="fill fill-full" style="width:100%"></div>
+      {% elif pct >= 80 %}
+      <div class="fill fill-warn" style="width:{{ pct }}%"></div>
+      {% else %}
+      <div class="fill fill-ok" style="width:{{ pct }}%"></div>
+      {% endif %}
+    </div>
+    <p class="capacity-label mt-1 mb-0">
+      <i class="bi bi-{{ 'exclamation-triangle-fill text-warning' if pct >= 80 else 'check-circle text-success' }} me-1"></i>
+      <span data-i18n="register.slots_remaining">剩余 {{ slots }} 个名额</span>
+    </p>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/register" style="animation: fadeInUp 0.4s ease-out 0.12s both;">
+    <div class="mb-3 has-icon">
+      <label class="form-label"><span data-i18n="register.username_label">用户名</span> <span class="hint" data-i18n="register.username_hint">（3-32位字母/数字）</span></label>
+      <div class="position-relative">
+        <span class="input-icon"><i class="bi bi-person"></i></span>
+        <input type="text" class="form-control" name="username" required autofocus
+               value="{{ username or '' }}" data-i18n-placeholder="register.username_placeholder" placeholder="myusername"
+               pattern="[a-zA-Z0-9]+" minlength="3" maxlength="32">
+      </div>
+    </div>
+    <div class="mb-3 has-icon">
+      <label class="form-label"><span data-i18n="register.email_label">邮箱</span> <span class="hint" data-i18n="register.email_hint">（用于找回密码和通知）</span></label>
+      <div class="position-relative">
+        <span class="input-icon"><i class="bi bi-envelope"></i></span>
+        <input type="email" class="form-control" name="email" required
+               value="{{ email or '' }}" data-i18n-placeholder="register.email_placeholder" placeholder="you@example.com">
+      </div>
+    </div>
+    <div class="mb-3 has-icon">
+      <label class="form-label"><span data-i18n="register.password_label">密码</span> <span class="hint" data-i18n="register.password_hint">（至少 6 位）</span></label>
+      <div class="position-relative">
+        <span class="input-icon"><i class="bi bi-lock"></i></span>
+        <input type="password" class="form-control" name="password" required
+               data-i18n-placeholder="register.password_placeholder" placeholder="至少6位密码" minlength="6">
+      </div>
+    </div>
+    <div class="mb-3 has-icon">
+      <label class="form-label" data-i18n="register.confirm_password_label">确认密码</label>
+      <div class="position-relative">
+        <span class="input-icon"><i class="bi bi-lock-fill"></i></span>
+        <input type="password" class="form-control" name="password2" required
+               data-i18n-placeholder="register.confirm_password_placeholder" placeholder="再次输入密码" minlength="6">
+      </div>
+    </div>
+
     <div class="mb-3">
-      <label class="form-label">用户名 <span class="hint">（3-32位字母/数字）</span></label>
-      <input type="text" class="form-control" name="username" required autofocus
-             value="{{ username or '' }}" placeholder="myusername"
-             pattern="[a-zA-Z0-9]+" minlength="3" maxlength="32">
+      <label class="form-label"><span data-i18n="register.email_code_label">邮箱验证码</span> <span class="hint text-danger" data-i18n="register.email_code_required">（必填）</span></label>
+      <div class="input-group">
+        <input type="text" class="form-control" name="code" required
+               data-i18n-placeholder="register.email_code_placeholder" placeholder="6位数字验证码" maxlength="6" pattern="[0-9]{6}"
+               value="{{ code or '' }}"
+               style="background:var(--bg-default); border:1px solid var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <button type="button" class="btn btn-outline-info btn-sm" id="sendCodeBtn"
+                onclick="sendCode()" style="border-radius:var(--radius-sm);" data-i18n="register.send_code_btn">发送验证码</button>
+      </div>
+      <p class="text-secondary mt-1" style="font-size:.72rem;" data-i18n="register.email_code_hint">验证码 10 分钟内有效，将发送至上方填写的邮箱</p>
     </div>
-    <div class="mb-3">
-      <label class="form-label">邮箱</label>
-      <input type="email" class="form-control" name="email" required
-             value="{{ email or '' }}" placeholder="you@example.com">
+
+    <div class="mb-3 has-icon">
+      <label class="form-label"><span data-i18n="register.invite_code_label">邀请码</span> {% if require_invite_code %} <span class="hint text-danger" data-i18n="register.invite_code_required">（必填）</span>{% else %} <span class="hint" data-i18n="register.invite_code_optional">（选填）</span>{% endif %}</label>
+      <div class="position-relative">
+        <span class="input-icon"><i class="bi bi-ticket-perforated"></i></span>
+        <input type="text" class="form-control" name="invite_code"
+               value="{{ invite_code or '' }}" data-i18n-placeholder="register.invite_code_placeholder" placeholder="输入邀请码"
+               style="font-family:monospace;">
+      </div>
     </div>
-    <div class="mb-3">
-      <label class="form-label">密码 <span class="hint">（至少 6 位）</span></label>
-      <input type="password" class="form-control" name="password" required
-             placeholder="设置密码" minlength="6">
-    </div>
-    <div class="mb-4">
-      <label class="form-label">确认密码</label>
-      <input type="password" class="form-control" name="password2" required
-             placeholder="再次输入密码">
-    </div>
-    <button type="submit" class="btn btn-primary w-100">
-      <i class="bi bi-person-check me-1"></i>注册
+
+    <button type="submit" class="btn btn-primary w-100 mt-2">
+      <i class="bi bi-person-check me-2"></i><span data-i18n="register.register_btn">注册</span>
     </button>
   </form>
 
-  <hr class="divider my-4">
-  <p class="text-center text-secondary mb-0" style="font-size:.875rem;">
-    已有账号？<a href="/login" style="color:#58a6ff;">立即登录</a>
+  {% endif %}
+
+  <p class="text-center mb-0 mt-3 footer-link">
+    <a href="/login" class="link-hover" style="font-size:.875rem;">
+      <i class="bi bi-box-arrow-in-right me-1"></i><span data-i18n="register.have_account">已有账号？立即登录</span>
+    </a>
   </p>
 </div>
+<script>
+let _cd = 0;
+async function sendCode() {
+  if (_cd > 0) return;
+  const emailEl = document.querySelector('input[name="email"]');
+  if (!emailEl || !emailEl.value) {
+    alert(window.__i18n ? window.__i18n('register.alert_fill_email', '请先填写邮箱地址') : '请先填写邮箱地址');
+    return;
+  }
+  const btn = document.getElementById('sendCodeBtn');
+  btn.disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append('email', emailEl.value);
+    fd.append('purpose', 'register');
+    const r = await fetch('/api/email/send-code', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.ok) {
+      _cd = 60;
+      const resendText = window.__i18n ? window.__i18n('register.resend_countdown', '秒后重发') : '秒后重发';
+      const sendText = window.__i18n ? window.__i18n('register.send_code_btn', '发送验证码') : '发送验证码';
+      btn.textContent = _cd + resendText;
+      btn.classList.remove('btn-outline-info');
+      btn.classList.add('btn-outline-secondary');
+      const t = setInterval(() => {
+        _cd--;
+        btn.textContent = _cd + resendText;
+        if (_cd <= 0) {
+          clearInterval(t);
+          btn.textContent = sendText;
+          btn.classList.remove('btn-outline-secondary');
+          btn.classList.add('btn-outline-info');
+          btn.disabled = false;
+        }
+      }, 1000);
+    } else {
+      alert(d.error || (window.__i18n ? window.__i18n('register.send_failed', '发送失败') : '发送失败'));
+      btn.disabled = false;
+    }
+  } catch(e) {
+    alert(window.__i18n ? window.__i18n('register.network_error', '网络错误，请重试') : '网络错误，请重试');
+    btn.disabled = false;
+  }
+}
+</script>
 </body>
 </html>

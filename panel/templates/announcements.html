@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title_i18n %}announcement_admin.title{% endblock %}{% block title %}公告设置 — HiveDeploy{% endblock %}
+
+{% block head %}
+<style>
+.min-width-0 { min-width: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="mb-0 fw-semibold"><i class="bi bi-megaphone me-2"></i><span data-i18n="announcement_admin.page_title">公告设置</span></h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;" data-i18n="announcement_admin.page_desc">发布多条前台公告，支持置顶、必读和格式化展示。</p>
+  </div>
+  <a href="/admin" class="btn btn-sm btn-outline-secondary btn-action"><i class="bi bi-arrow-left me-1"></i><span data-i18n="common.back">返回</span></a>
+</div>
+
+{% if request.query_params.get('saved') %}
+<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i><span data-i18n="announcement_admin.saved">公告已保存</span></div>
+{% endif %}
+{% if request.query_params.get('deleted') %}
+<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i><span data-i18n="announcement_admin.deleted">公告已删除</span></div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-xl-5">
+    <div class="card">
+      <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+        <div class="hero-icon" style="width:32px;height:32px;font-size:1rem;"><i class="bi bi-plus-circle"></i></div>
+        <small class="fw-semibold text-secondary" data-i18n="announcement_admin.create_title">发布新公告</small>
+      </div>
+      <div class="card-body">
+        <form method="post" action="/admin/announcements/create" class="d-flex flex-column gap-3">
+          <div>
+            <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="announcement_admin.title_label">标题</label>
+            <input type="text" class="form-control form-control-sm" name="title" required placeholder="例如：价格调整通知"
+                   style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary);">
+          </div>
+          <div class="row g-2">
+            <div class="col-sm-6">
+              <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="announcement_admin.type_label">类型</label>
+              <select class="form-select form-select-sm" name="type" style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary);">
+                <option value="info" data-i18n="announcement_admin.type_info">普通说明</option>
+                <option value="price" data-i18n="announcement_admin.type_price">价格变更</option>
+                <option value="migration" data-i18n="announcement_admin.type_migration">数据迁移</option>
+                <option value="warning" data-i18n="announcement_admin.type_warning">重要提醒</option>
+                <option value="ban" data-i18n="announcement_admin.type_ban">封禁警示</option>
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="announcement_admin.level_label">性质</label>
+              <select class="form-select form-select-sm" name="level" style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary);">
+                <option value="normal" data-i18n="announcement_admin.level_normal">普通</option>
+                <option value="required" data-i18n="announcement_admin.level_required">必读</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-2">
+            <div class="col-sm-4">
+              <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="announcement_admin.font_size">字号</label>
+              <input type="number" class="form-control form-control-sm" name="font_size" min="12" max="24" value="15"
+                     style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary);">
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="announcement_admin.color">颜色</label>
+              <input type="color" class="form-control form-control-sm form-control-color w-100" name="color" value="#8b949e"
+                     style="background:var(--bg-input); border-color:var(--border-default);">
+            </div>
+            <div class="col-sm-4 d-flex flex-column justify-content-end gap-1">
+              <label class="form-check text-secondary" style="font-size:.82rem;">
+                <input class="form-check-input" type="checkbox" name="bold" value="true">
+                <span data-i18n="announcement_admin.bold">加粗</span>
+              </label>
+              <label class="form-check text-secondary" style="font-size:.82rem;">
+                <input class="form-check-input" type="checkbox" name="pinned" value="true">
+                <span data-i18n="announcement_admin.pinned">置顶</span>
+              </label>
+              <label class="form-check text-secondary" style="font-size:.82rem;">
+                <input class="form-check-input" type="checkbox" name="enabled" value="true" checked>
+                <span data-i18n="announcement_admin.enabled">启用</span>
+              </label>
+            </div>
+          </div>
+          <div>
+            <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="announcement_admin.content_label">内容</label>
+            <textarea class="form-control form-control-sm" name="content" rows="8" required
+                      placeholder="可填写价格变更、数据迁移计划、封禁规则、维护通知等说明性内容。支持换行。"
+                      style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary);"></textarea>
+          </div>
+          <button type="submit" class="btn btn-info btn-sm text-white btn-action"><i class="bi bi-send me-1"></i><span data-i18n="announcement_admin.publish">发布公告</span></button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-7">
+    <div class="d-flex flex-column gap-2">
+      {% for item in announcements %}
+      <div class="card">
+        <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between gap-2">
+          <div class="d-flex align-items-center gap-2 min-width-0">
+            <i class="bi bi-megaphone text-info flex-shrink-0"></i>
+            <div class="text-truncate">
+              <div class="fw-semibold text-truncate" style="font-size:.88rem;">{{ item.title }}</div>
+              <small class="text-secondary">#{{ item.id }} · {{ item.updated_at.strftime('%Y-%m-%d %H:%M') if item.updated_at else '' }}</small>
+            </div>
+            {% if item.pinned %}<span class="badge bg-warning text-dark" data-i18n="announcement_admin.pinned">置顶</span>{% endif %}
+            {% if item.level == 'required' %}<span class="badge bg-danger" data-i18n="announcement_admin.level_required">必读</span>{% endif %}
+            {% if not item.enabled %}<span class="badge bg-secondary" data-i18n="announcement_admin.disabled">未启用</span>{% endif %}
+          </div>
+          <div class="d-flex align-items-center gap-1 flex-shrink-0">
+            <button class="btn btn-sm btn-outline-secondary btn-action" type="button" data-bs-toggle="collapse" data-bs-target="#announcementEdit{{ item.id }}" aria-expanded="false">
+              <i class="bi bi-pencil-square me-1"></i><span data-i18n="common.edit">编辑</span>
+            </button>
+            <form method="post" action="/admin/announcements/{{ item.id }}/delete"
+                  onsubmit="return confirm(window.__i18n ? window.__i18n('announcement_admin.confirm_delete', '确定删除此公告？') : '确定删除此公告？')">
+              <button class="btn btn-sm btn-outline-danger btn-action"><i class="bi bi-trash3"></i></button>
+            </form>
+          </div>
+        </div>
+        <div class="card-body py-2 px-3">
+          <div class="text-secondary text-truncate" style="font-size:.82rem;">{{ item.content }}</div>
+        </div>
+        <div class="collapse" id="announcementEdit{{ item.id }}">
+        <div class="card-body border-top" style="border-color:var(--border-subtle)!important;">
+          <form method="post" action="/admin/announcements/{{ item.id }}/update" class="d-flex flex-column gap-3">
+            <div class="row g-2">
+              <div class="col-md-8">
+                <input type="text" class="form-control form-control-sm" name="title" value="{{ item.title }}" required
+                       style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary);">
+              </div>
+              <div class="col-md-2">
+                <select class="form-select form-select-sm" name="type" style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary);">
+                  {% for t, label in [('info','普通说明'),('price','价格变更'),('migration','数据迁移'),('warning','重要提醒'),('ban','封禁警示')] %}
+                  <option value="{{ t }}" {% if item.type == t %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select class="form-select form-select-sm" name="level" style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary);">
+                  <option value="normal" {% if item.level == 'normal' %}selected{% endif %}>普通</option>
+                  <option value="required" {% if item.level == 'required' %}selected{% endif %}>必读</option>
+                </select>
+              </div>
+            </div>
+            <textarea class="form-control form-control-sm" name="content" rows="5" required
+                      style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary);">{{ item.content }}</textarea>
+            <div class="row g-2 align-items-end">
+              <div class="col-sm-2">
+                <label class="form-label text-secondary" style="font-size:.75rem;" data-i18n="announcement_admin.font_size">字号</label>
+                <input type="number" class="form-control form-control-sm" name="font_size" min="12" max="24" value="{{ item.font_size or 15 }}"
+                       style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary);">
+              </div>
+              <div class="col-sm-2">
+                <label class="form-label text-secondary" style="font-size:.75rem;" data-i18n="announcement_admin.color">颜色</label>
+                <input type="color" class="form-control form-control-sm form-control-color w-100" name="color" value="{{ item.color or '#8b949e' }}"
+                       style="background:var(--bg-input); border-color:var(--border-default);">
+              </div>
+              <div class="col-sm-5 d-flex gap-3 flex-wrap">
+                <label class="form-check text-secondary" style="font-size:.82rem;"><input class="form-check-input" type="checkbox" name="bold" value="true" {% if item.bold %}checked{% endif %}> <span data-i18n="announcement_admin.bold">加粗</span></label>
+                <label class="form-check text-secondary" style="font-size:.82rem;"><input class="form-check-input" type="checkbox" name="pinned" value="true" {% if item.pinned %}checked{% endif %}> <span data-i18n="announcement_admin.pinned">置顶</span></label>
+                <label class="form-check text-secondary" style="font-size:.82rem;"><input class="form-check-input" type="checkbox" name="enabled" value="true" {% if item.enabled %}checked{% endif %}> <span data-i18n="announcement_admin.enabled">启用</span></label>
+              </div>
+              <div class="col-sm-3">
+                <button type="submit" class="btn btn-sm btn-outline-info btn-action w-100"><i class="bi bi-floppy me-1"></i><span data-i18n="common.save">保存</span></button>
+              </div>
+            </div>
+            <div class="p-3 rounded" style="background:var(--bg-input); border:1px solid var(--border-default);">
+              <div class="fw-semibold mb-2">{{ item.title }}</div>
+              <div style="white-space:pre-wrap;font-size:{{ item.font_size or 15 }}px;color:{{ item.color or 'var(--text-secondary)' }};font-weight:{{ '700' if item.bold else '400' }};">{{ item.content }}</div>
+            </div>
+          </form>
+        </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="card">
+        <div class="card-body text-center text-secondary py-5">
+          <i class="bi bi-megaphone" style="font-size:2rem;"></i>
+          <p class="mb-0 mt-2" data-i18n="announcement_admin.empty">暂无公告</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

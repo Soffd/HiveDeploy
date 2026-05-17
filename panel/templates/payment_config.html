@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title_i18n %}payment.title{% endblock %}{% block title %}收款设置 — HiveDeploy{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-semibold"><i class="bi bi-credit-card me-2"></i><span data-i18n="payment.payment_settings">收款 &amp; 续期设置</span></h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;" data-i18n="payment.page_desc">配置微信/支付宝收款二维码、价格说明、联系方式</p>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}
+<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;">
+  <i class="bi bi-check-circle me-1"></i><span data-i18n="payment.saved">收款设置已保存</span>
+</div>
+{% endif %}
+
+<form method="post" action="/admin/payment" enctype="multipart/form-data">
+  <div class="card mb-4">
+    <div class="card-header py-2 px-3">
+      <small class="fw-semibold text-secondary"><i class="bi bi-toggle-on me-1"></i><span data-i18n="payment.feature_toggle">功能开关</span></small>
+    </div>
+    <div class="card-body">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="renewal_enabled" id="renewalEnabled"
+               value="true" {% if cfg.renewal_enabled %}checked{% endif %}>
+        <label class="form-check-label" for="renewalEnabled">
+          <span class="fw-semibold" data-i18n="payment.enable_renewal">开放自助续期</span>
+          <p class="text-secondary mt-1 mb-0" style="font-size:.8rem;">
+            <span data-i18n="payment.enable_renewal_desc">开启后，普通用户可在控制台看到「自助续期」入口，自行选择续期时长（单次最长 30 天）。</span>
+            <br><strong class="text-warning" data-i18n="payment.enable_renewal_warning">注意：系统不验证支付，完全由用户自主操作。管理员可在续期记录中核对。</strong>
+          </p>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header py-2 px-3">
+      <small class="fw-semibold text-secondary"><i class="bi bi-tag me-1"></i><span data-i18n="payment.price_section">价格说明</span></small>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="payment.price_text_label">价格文本（显示在续期页面）</label>
+        <input type="text" class="form-control" name="price_text"
+               value="{{ cfg.price_text or '' }}"
+               data-i18n-placeholder="payment.price_text_placeholder" placeholder="例如：15元/月，单次最长可续30天"
+               style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+        <span class="text-secondary" style="font-size:.72rem;" data-i18n="payment.price_text_hint">简短说明价格，支持任意文本</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header py-2 px-3">
+      <small class="fw-semibold text-secondary"><i class="bi bi-qr-code me-1"></i><span data-i18n="payment.qr_section">收款二维码</span></small>
+    </div>
+    <div class="card-body">
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="card" style="background:#0d1117; border:1px solid #30363d;">
+            <div class="card-body text-center">
+              <h6 class="mb-3" style="color:#3fb950;"><i class="bi bi-wechat me-1"></i><span data-i18n="payment.wechat_qr_title">微信收款码</span></h6>
+              {% if cfg.wechat_qr %}
+              <img src="/uploads/{{ cfg.wechat_qr }}" class="img-fluid mb-3" style="max-height:260px; border-radius:8px;">
+              <p class="text-secondary mb-2" style="font-size:.75rem;"><span data-i18n="payment.current_image" data-i18n-params='{"name":"{{ cfg.wechat_qr }}"}'>当前图片：{{ cfg.wechat_qr }}</span></p>
+              {% else %}
+              <div class="d-flex align-items-center justify-content-center mb-3"
+                   style="height:180px; background:#161b22; border:2px dashed #30363d; border-radius:8px;">
+                <span class="text-secondary" data-i18n="payment.not_uploaded">未上传</span>
+              </div>
+              {% endif %}
+              <div class="d-flex gap-2 justify-content-center flex-wrap">
+                <label class="btn btn-sm btn-outline-success">
+                  <i class="bi bi-upload me-1"></i><span data-i18n="payment.upload_qr_btn">上传二维码</span>
+                  <input type="file" name="wechat_qr_file" accept="image/*" style="display:none"
+                         onchange="this.parentElement.nextElementSibling.textContent=this.files[0]?.name||''">
+                </label>
+                <span class="text-secondary align-self-center" style="font-size:.75rem;"></span>
+                {% if cfg.wechat_qr %}
+                <label class="btn btn-sm btn-outline-danger align-self-center">
+                  <input type="checkbox" name="clear_wechat_qr" value="1" style="display:none"
+                         onchange="this.parentElement.classList.toggle('btn-danger',this.checked);this.parentElement.classList.toggle('btn-outline-danger',!this.checked)">
+                  <i class="bi bi-trash3 me-1"></i><span data-i18n="payment.clear_btn">清除</span>
+                </label>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card" style="background:#0d1117; border:1px solid #30363d;">
+            <div class="card-body text-center">
+              <h6 class="mb-3" style="color:#1677ff;"><i class="bi bi-alipay"></i> <span data-i18n="payment.alipay_qr_title">支付宝收款码</span></h6>
+              {% if cfg.alipay_qr %}
+              <img src="/uploads/{{ cfg.alipay_qr }}" class="img-fluid mb-3" style="max-height:260px; border-radius:8px;">
+              <p class="text-secondary mb-2" style="font-size:.75rem;"><span data-i18n="payment.current_image" data-i18n-params='{"name":"{{ cfg.alipay_qr }}"}'>当前图片：{{ cfg.alipay_qr }}</span></p>
+              {% else %}
+              <div class="d-flex align-items-center justify-content-center mb-3"
+                   style="height:180px; background:#161b22; border:2px dashed #30363d; border-radius:8px;">
+                <span class="text-secondary" data-i18n="payment.not_uploaded">未上传</span>
+              </div>
+              {% endif %}
+              <div class="d-flex gap-2 justify-content-center flex-wrap">
+                <label class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-upload me-1"></i><span data-i18n="payment.upload_qr_btn">上传二维码</span>
+                  <input type="file" name="alipay_qr_file" accept="image/*" style="display:none"
+                         onchange="this.parentElement.nextElementSibling.textContent=this.files[0]?.name||''">
+                </label>
+                <span class="text-secondary align-self-center" style="font-size:.75rem;"></span>
+                {% if cfg.alipay_qr %}
+                <label class="btn btn-sm btn-outline-danger align-self-center">
+                  <input type="checkbox" name="clear_alipay_qr" value="1" style="display:none"
+                         onchange="this.parentElement.classList.toggle('btn-danger',this.checked);this.parentElement.classList.toggle('btn-outline-danger',!this.checked)">
+                  <i class="bi bi-trash3 me-1"></i><span data-i18n="payment.clear_btn">清除</span>
+                </label>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="text-secondary mt-2 mb-0" style="font-size:.75rem;">
+        <i class="bi bi-info-circle me-1"></i><span data-i18n="payment.qr_upload_hint">建议上传裁剪好的方形二维码图片，效果最佳</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header py-2 px-3">
+      <small class="fw-semibold text-secondary"><i class="bi bi-file-text me-1"></i><span data-i18n="payment.instructions_section">续期说明（显示在用户续期页面）</span></small>
+    </div>
+    <div class="card-body">
+      <textarea class="form-control" name="instructions" rows="8"
+                style="background:#0d1117; border-color:#30363d; color:#e6edf3; font-size:.875rem;"
+                data-i18n-placeholder="payment.instructions_placeholder" placeholder="在此填写续期说明、注意事项、联系方式等...">{{ cfg.instructions or '' }}</textarea>
+      <p class="text-secondary mt-1 mb-0" style="font-size:.72rem;" data-i18n="payment.instructions_hint">
+        支持纯文本换行。建议包含：价格、支付方式、续期步骤、注意事项、售后联系方式。
+      </p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header py-2 px-3">
+      <small class="fw-semibold text-secondary"><i class="bi bi-share me-1"></i><span data-i18n="payment.social_section">社交媒体 &amp; 售后联系方式</span></small>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label text-secondary" style="font-size:.8rem;">
+            <i class="bi bi-tencent-qq me-1"></i><span data-i18n="payment.social_qq_label">QQ 群/号</span>
+          </label>
+          <input type="text" class="form-control form-control-sm" name="social_qq"
+                 value="{{ cfg.social_qq or '' }}"
+                 data-i18n-placeholder="payment.social_qq_placeholder" placeholder="如：123456789 或 https://jq.qq.com/..."
+                 style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label text-secondary" style="font-size:.8rem;">
+            <i class="bi bi-wechat me-1"></i><span data-i18n="payment.social_wechat_label">微信</span>
+          </label>
+          <input type="text" class="form-control form-control-sm" name="social_wechat"
+                 value="{{ cfg.social_wechat or '' }}"
+                 data-i18n-placeholder="payment.social_wechat_placeholder" placeholder="如：微信号或群二维码链接"
+                 style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label text-secondary" style="font-size:.8rem;">
+            <i class="bi bi-telegram me-1"></i><span data-i18n="payment.social_telegram_label">Telegram</span>
+          </label>
+          <input type="text" class="form-control form-control-sm" name="social_telegram"
+                 value="{{ cfg.social_telegram or '' }}"
+                 data-i18n-placeholder="payment.social_telegram_placeholder" placeholder="如：https://t.me/yourgroup"
+                 style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label text-secondary" style="font-size:.8rem;">
+            <i class="bi bi-discord me-1"></i><span data-i18n="payment.social_discord_label">Discord</span>
+          </label>
+          <input type="text" class="form-control form-control-sm" name="social_discord"
+                 value="{{ cfg.social_discord or '' }}"
+                 data-i18n-placeholder="payment.social_discord_placeholder" placeholder="如：https://discord.gg/invitecode"
+                 style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+        </div>
+      </div>
+      <p class="text-secondary mt-2 mb-0" style="font-size:.75rem;" data-i18n="payment.social_hint">
+        这些链接将显示在续期页面底部，方便用户联系售后
+      </p>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-success btn-lg px-5">
+    <i class="bi bi-floppy me-1"></i><span data-i18n="payment.save_all_btn">保存全部设置</span>
+  </button>
+</form>
+{% endblock %}

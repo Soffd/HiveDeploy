@@ -1,38 +1,61 @@
 {% extends "base.html" %}
-{% block title %}个人设置 — Bot Platform{% endblock %}
+{% block title_i18n %}profile.title{% endblock %}{% block title %}个人设置 — HiveDeploy{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-md-5">
-    <h4 class="fw-semibold mb-4"><i class="bi bi-person-gear me-2"></i>个人设置</h4>
+  <div class="col-lg-8 col-xl-7">
+    <div class="page-header d-flex align-items-center mb-4">
+      <div>
+        <h4 class="mb-0 fw-semibold"><i class="bi bi-person-gear me-2"></i><span data-i18n="profile.page_title">个人设置</span></h4>
+        <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;" data-i18n="profile.page_desc">管理您的账号信息与安全设置</p>
+      </div>
+    </div>
 
     <div class="card mb-3">
-      <div class="card-header py-2 px-3">
-        <small class="fw-semibold text-secondary">账号信息</small>
+      <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+        <div class="hero-icon" style="width:32px;height:32px;font-size:1rem;">
+          <i class="bi bi-person-badge"></i>
+        </div>
+        <small class="fw-semibold text-secondary" data-i18n="profile.account_info">账号信息</small>
       </div>
       <div class="card-body">
-        <div class="d-flex justify-content-between py-1" style="font-size:.875rem;">
-          <span class="text-secondary">用户名</span>
+        <div class="d-flex justify-content-between align-items-center py-2" style="font-size:.875rem;">
+          <span class="text-secondary"><i class="bi bi-person me-2 opacity-75"></i><span data-i18n="profile.username">用户名</span></span>
           <span class="fw-semibold">{{ user.username }}</span>
         </div>
-        <div class="d-flex justify-content-between py-1" style="font-size:.875rem;">
-          <span class="text-secondary">邮箱</span>
+        <div class="d-flex justify-content-between align-items-center py-2" style="font-size:.875rem; border-top:1px solid var(--border-default);">
+          <span class="text-secondary"><i class="bi bi-envelope me-2 opacity-75"></i><span data-i18n="profile.email">邮箱</span></span>
           <span>{{ user.email }}</span>
         </div>
-        <div class="d-flex justify-content-between py-1" style="font-size:.875rem;">
-          <span class="text-secondary">角色</span>
+        <div class="d-flex justify-content-between align-items-center py-2" style="font-size:.875rem; border-top:1px solid var(--border-default);">
+          <span class="text-secondary"><i class="bi bi-shield me-2 opacity-75"></i><span data-i18n="profile.role">角色</span></span>
           {% if user.is_admin %}
-          <span class="badge bg-warning text-dark">管理员</span>
+          <span class="tag-pill" style="background:var(--amber);color:var(--bg-default);" data-i18n="profile.admin">管理员</span>
           {% else %}
-          <span class="badge bg-secondary">普通用户</span>
+          <span class="tag-pill" style="background:var(--border-default);" data-i18n="profile.normal_user">普通用户</span>
           {% endif %}
         </div>
       </div>
     </div>
 
+    <div class="card mb-3">
+      <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+        <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(210,153,34,0.08); color:var(--amber); border-color:rgba(210,153,34,0.2);">
+          <i class="bi bi-ticket-perforated"></i>
+        </div>
+        <small class="fw-semibold text-secondary" data-i18n="profile.invite_codes">邀请码</small>
+      </div>
+      <div class="card-body" id="inviteCodeSection">
+        <div class="text-center py-3 text-secondary" id="inviteLoading" data-i18n="profile.invite_loading">加载中...</div>
+      </div>
+    </div>
+
     <div class="card">
-      <div class="card-header py-2 px-3">
-        <small class="fw-semibold text-secondary"><i class="bi bi-key me-1"></i>修改密码</small>
+      <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+        <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(247,129,102,0.08); color:var(--orange); border-color:rgba(247,129,102,0.2);">
+          <i class="bi bi-key"></i>
+        </div>
+        <small class="fw-semibold text-secondary" data-i18n="profile.change_password">修改密码</small>
       </div>
       <div class="card-body">
         {% if errors %}
@@ -45,30 +68,168 @@
 
         <form method="post" action="/profile/password">
           <div class="mb-3">
-            <label class="form-label text-secondary" style="font-size:.8rem;">当前密码</label>
-            <input type="password" class="form-control" name="old_password" required
-                   style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+            <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="profile.current_password">当前密码</label>
+            <input type="password" class="form-control input-enhanced" name="old_password" required
+                   style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
           </div>
           <div class="mb-3">
-            <label class="form-label text-secondary" style="font-size:.8rem;">新密码（至少 6 位）</label>
-            <input type="password" class="form-control" name="new_password" required minlength="6"
-                   style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+            <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="profile.new_password">新密码（至少 6 位）</label>
+            <input type="password" class="form-control input-enhanced" name="new_password" required minlength="6"
+                   style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
           </div>
-          <div class="mb-4">
-            <label class="form-label text-secondary" style="font-size:.8rem;">确认新密码</label>
-            <input type="password" class="form-control" name="new_password2" required
-                   style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+          <div class="mb-3">
+            <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="profile.confirm_new_password">确认新密码</label>
+            <input type="password" class="form-control input-enhanced" name="new_password2" required
+                   style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
           </div>
-          <button type="submit" class="btn btn-success w-100">
-            <i class="bi bi-floppy me-1"></i>保存新密码
+          <div class="mb-3">
+            <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="profile.email_code" data-i18n-params='{"email":"{{ user.email }}"}'>邮箱验证码（将发送至 {{ user.email }}）</label>
+            <div class="input-group">
+              <input type="text" class="form-control input-enhanced" name="code" required
+                     data-i18n-placeholder="profile.code_placeholder" placeholder="6位数字验证码" maxlength="6" pattern="[0-9]{6}"
+                     style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+              <button type="button" class="btn btn-outline-info btn-sm btn-action" id="sendCodeBtn"
+                      onclick="sendCode()"><span data-i18n="profile.send_code_btn">发送验证码</span></button>
+            </div>
+            <p class="text-secondary mt-1" style="font-size:.72rem;" data-i18n="profile.code_validity">验证码 10 分钟内有效</p>
+          </div>
+          <button type="submit" class="btn btn-success w-100 btn-action">
+            <i class="bi bi-floppy me-1"></i><span data-i18n="profile.save_password_btn">保存新密码</span>
           </button>
         </form>
         <p class="text-secondary mt-3 mb-0" style="font-size:.78rem;">
-          <i class="bi bi-info-circle me-1"></i>修改密码后需要重新登录
+          <i class="bi bi-info-circle me-1"></i><span data-i18n="profile.password_changed_notice">修改密码后需要重新登录</span>
         </p>
       </div>
     </div>
 
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function __i(key, fallback) {
+  if (window.__i18n) return window.__i18n(key, fallback);
+  return fallback;
+}
+
+async function loadInviteCodes() {
+  const section = document.getElementById('inviteCodeSection');
+  try {
+    const r = await fetch('/api/invite_codes/my');
+    const d = await r.json();
+    let html = '';
+    if (d.is_admin) {
+      html = '<p class="text-secondary" style="font-size:.82rem;">' + __i('profile.invite_admin_hint', '管理员请前往 <a href="/admin" style="color:#58a6ff;">管理后台</a> 管理邀请码') + '</p>';
+    } else if (!d.is_veteran) {
+      html = '<p class="text-secondary" style="font-size:.82rem;">' + __i('profile.invite_min_days_hint', '注册满 {days} 天可生成邀请码').replace('{days}', d.min_days) + '</p>';
+    } else {
+      html = '<div class="d-flex justify-content-between align-items-center mb-2">' +
+        '<span class="text-secondary" style="font-size:.8rem;">' + __i('profile.invite_unused_count', '未使用: {active}/{limit} | 本月: {monthly}/{monthly_limit}').replace('{active}', d.active_count).replace('{limit}', d.active_limit).replace('{monthly}', d.monthly_count).replace('{monthly_limit}', d.monthly_limit) + '</span>' +
+        '<button class="btn btn-sm btn-success" id="genInviteBtn" onclick="generateInvite()">' + __i('profile.invite_generate_btn', '生成邀请码') + '</button>' +
+        '</div>';
+      if (d.codes.length > 0) {
+        html += '<div class="table-responsive"><table class="table table-sm table-dark mb-0" style="font-size:.78rem;">' +
+          '<thead><tr><th>' + __i('profile.invite_code_th', '邀请码') + '</th><th>' + __i('profile.invite_status_th', '状态') + '</th><th>' + __i('profile.invite_created_th', '生成时间') + '</th><th>' + __i('profile.invite_actions_th', '操作') + '</th></tr></thead><tbody>';
+        d.codes.forEach(c => {
+          html += '<tr><td style="font-family:monospace;">' + escHtml(c.code) + '</td>' +
+            '<td>' + (c.used ? '<span class="badge bg-secondary">' + __i('profile.invite_used', '已使用') + '</span>' : '<span class="badge bg-success">' + __i('profile.invite_available', '可用') + '</span>') + '</td>' +
+            '<td>' + c.created_at + '</td>' +
+            '<td><button class="btn btn-sm btn-outline-secondary btn-action" onclick="hideInviteCode(' + c.id + ', this)" title="' + __i('common.delete', '删除') + '"><i class="bi bi-x-lg"></i></button></td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<p class="text-secondary text-center py-2 mb-0">' + __i('profile.invite_no_codes', '暂无邀请码，点击上方按钮生成') + '</p>';
+      }
+    }
+    section.innerHTML = html;
+  } catch(e) {
+    section.innerHTML = '<p class="text-danger">' + __i('profile.invite_load_failed', '加载失败') + '</p>';
+  }
+}
+
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function generateInvite() {
+  const btn = document.getElementById('genInviteBtn');
+  btn.disabled = true;
+  btn.textContent = __i('profile.invite_generating', '生成中...');
+  try {
+    const r = await fetch('/api/invite_codes/generate', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      alert(__i('profile.invite_codes', '邀请码') + ': ' + d.code);
+      loadInviteCodes();
+    } else {
+      alert(d.error || __i('profile.invite_generate_failed', '生成失败'));
+      btn.disabled = false;
+      btn.textContent = __i('profile.invite_generate_btn', '生成邀请码');
+    }
+  } catch(e) {
+    alert(__i('profile.invite_network_error', '网络错误'));
+    btn.disabled = false;
+    btn.textContent = __i('profile.invite_generate_btn', '生成邀请码');
+  }
+}
+
+async function hideInviteCode(id, btn) {
+  if (!confirm(__i('profile.invite_confirm_delete', '确定删除该邀请码？未使用的邀请码将同时被标记为已使用。'))) return;
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/invite_codes/' + id + '/hide', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      loadInviteCodes();
+    } else {
+      alert(d.error || __i('profile.invite_remove_failed', '移除失败'));
+      btn.disabled = false;
+    }
+  } catch(e) {
+    alert(__i('profile.invite_network_error', '网络错误'));
+    btn.disabled = false;
+  }
+}
+
+loadInviteCodes();
+</script>
+<script>
+let _cd = 0;
+async function sendCode() {
+  if (_cd > 0) return;
+  const btn = document.getElementById('sendCodeBtn');
+  btn.disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append('email', '{{ user.email }}');
+    fd.append('purpose', 'change_password');
+    const r = await fetch('/api/email/send-code', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.ok) {
+      _cd = 60;
+      btn.innerHTML = _cd + 's ' + __i('register.resend_countdown', '秒后重发');
+      btn.classList.remove('btn-outline-info');
+      btn.classList.add('btn-outline-secondary');
+      const t = setInterval(() => {
+        _cd--;
+        btn.innerHTML = _cd + 's ' + __i('register.resend_countdown', '秒后重发');
+        if (_cd <= 0) {
+          clearInterval(t);
+          btn.innerHTML = __i('profile.send_code_btn', '发送验证码');
+          btn.classList.remove('btn-outline-secondary');
+          btn.classList.add('btn-outline-info');
+          btn.disabled = false;
+        }
+      }, 1000);
+    } else {
+      alert(d.error || __i('register.send_failed', '发送失败'));
+      btn.disabled = false;
+    }
+  } catch(e) {
+    alert(__i('profile.invite_network_error', '网络错误'));
+    btn.disabled = false;
+  }
+}
+</script>
 {% endblock %}

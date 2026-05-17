@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ service }} 终端 — Bot Platform{% endblock %}
+{% block title_i18n %}terminal.title{% endblock %}{% block title %}{{ service }} 终端 — HiveDeploy{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
@@ -21,22 +21,28 @@
 <div class="d-flex align-items-center justify-content-between mb-3">
   <div>
     <h4 class="mb-0 fw-semibold">
-      <i class="bi bi-code-square me-2"></i>{{ service }} 终端
+      <i class="bi bi-code-square me-2"></i>{{ service }} <span data-i18n="dashboard.terminal">终端</span>
     </h4>
-    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;">
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;" data-i18n="terminal.container_info" data-i18n-params='{"container":"{{ service }}_{{ user.username }}"}'>
       容器: {{ service }}_{{ user.username }}
     </p>
   </div>
   <div class="d-flex align-items-center gap-2">
-    <span id="connStatus" class="conn-badge bg-warning">连接中...</span>
-    <a href="/terminal/{% if service == 'astrbot' %}napcat{% else %}astrbot{% endif %}"
-       class="btn btn-sm btn-outline-secondary">
-      切换到 {% if service == 'astrbot' %}NapCat{% else %}AstrBot{% endif %}
-    </a>
+    <span id="connStatus" class="conn-badge bg-warning" data-i18n="terminal.connecting">连接中...</span>
+    {% if service == 'astrbot' %}
+    <a href="/terminal/napcat" class="btn btn-sm btn-outline-secondary"><span data-i18n="terminal.switch_to" data-i18n-params='{"service":"NapCat"}'>切换到 NapCat</span></a>
+    <a href="/terminal/llonebot" class="btn btn-sm btn-outline-secondary"><span data-i18n="terminal.switch_to" data-i18n-params='{"service":"LLOneBot"}'>切换到 LLOneBot</span></a>
+    {% elif service == 'napcat' %}
+    <a href="/terminal/astrbot" class="btn btn-sm btn-outline-secondary"><span data-i18n="terminal.switch_to" data-i18n-params='{"service":"AstrBot"}'>切换到 AstrBot</span></a>
+    <a href="/terminal/llonebot" class="btn btn-sm btn-outline-secondary"><span data-i18n="terminal.switch_to" data-i18n-params='{"service":"LLOneBot"}'>切换到 LLOneBot</span></a>
+    {% else %}
+    <a href="/terminal/astrbot" class="btn btn-sm btn-outline-secondary"><span data-i18n="terminal.switch_to" data-i18n-params='{"service":"AstrBot"}'>切换到 AstrBot</span></a>
+    <a href="/terminal/napcat" class="btn btn-sm btn-outline-secondary"><span data-i18n="terminal.switch_to" data-i18n-params='{"service":"NapCat"}'>切换到 NapCat</span></a>
+    {% endif %}
     <button class="btn btn-sm btn-outline-info" onclick="reconnect()">
-      <i class="bi bi-arrow-clockwise me-1"></i>重连
+      <i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="terminal.reconnect">重连</span>
     </button>
-    <a href="/dashboard" class="btn btn-sm btn-outline-secondary">← 返回</a>
+    <a href="/dashboard" class="btn btn-sm btn-outline-secondary"><span data-i18n="terminal.back_btn">← 返回</span></a>
   </div>
 </div>
 
@@ -51,6 +57,12 @@
 <script>
 const SERVICE = '{{ service }}';
 let term, fitAddon, ws;
+
+function __i(key, fallback) {
+  if (window.__i18n) return window.__i18n(key, fallback);
+  return fallback;
+}
+
 
 function initTerm() {
   if (term) { term.dispose(); }
@@ -94,7 +106,7 @@ function connect() {
 
   ws.onopen = () => {
     document.getElementById('connStatus').className = 'conn-badge bg-success';
-    document.getElementById('connStatus').textContent = '已连接';
+    document.getElementById('connStatus').textContent = __i('terminal.connected', '已连接');
     sendResize();
   };
 
@@ -108,13 +120,13 @@ function connect() {
 
   ws.onclose = () => {
     document.getElementById('connStatus').className = 'conn-badge bg-danger';
-    document.getElementById('connStatus').textContent = '已断开';
-    term.writeln('\r\n\x1b[31m连接已断开。点击"重连"按钮重新连接。\x1b[0m');
+    document.getElementById('connStatus').textContent = __i('terminal.disconnected', '已断开');
+    term.writeln('\r\n\x1b[31m' + __i('terminal.reconnect_hint', '连接已断开。点击重连按钮重新连接。') + '\x1b[0m');
   };
 
   ws.onerror = () => {
     document.getElementById('connStatus').className = 'conn-badge bg-danger';
-    document.getElementById('connStatus').textContent = '连接错误';
+    document.getElementById('connStatus').textContent = __i('terminal.connection_error', '连接错误');
   };
 }
 
@@ -122,7 +134,7 @@ function reconnect() {
   if (ws) { try { ws.close(); } catch(e){} }
   term.clear();
   document.getElementById('connStatus').className = 'conn-badge bg-warning';
-  document.getElementById('connStatus').textContent = '连接中...';
+  document.getElementById('connStatus').textContent = __i('terminal.connecting', '连接中...');
   connect();
 }
 

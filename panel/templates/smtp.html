@@ -1,52 +1,52 @@
 {% extends "base.html" %}
-{% block title %}邮件设置 — Bot Platform{% endblock %}
+{% block title_i18n %}smtp.title{% endblock %}{% block title %}邮件设置 — HiveDeploy{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-md-6">
-    <h4 class="fw-semibold mb-4"><i class="bi bi-envelope-gear me-2"></i>SMTP 邮件设置</h4>
+    <h4 class="fw-semibold mb-4"><i class="bi bi-envelope-at me-2"></i><span data-i18n="smtp.email_settings">SMTP 邮件设置</span></h4>
 
     {% if request.query_params.get('saved') %}
     <div class="alert alert-success py-2 mb-3" style="font-size:.875rem;">
-      <i class="bi bi-check-circle me-1"></i>设置已保存
+      <i class="bi bi-check-circle me-1"></i><span data-i18n="smtp.saved">设置已保存</span>
     </div>
     {% endif %}
 
     <div class="card mb-3">
       <div class="card-header py-2 px-3">
-        <small class="fw-semibold text-secondary">SMTP 服务器配置</small>
+        <small class="fw-semibold text-secondary" data-i18n="smtp.smtp_config">SMTP 服务器配置</small>
       </div>
       <div class="card-body">
         <form method="post" action="/admin/smtp">
           <div class="row g-3">
             <div class="col-md-8">
-              <label class="form-label text-secondary" style="font-size:.8rem;">SMTP 服务器</label>
+              <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="smtp.smtp_host">SMTP 服务器</label>
               <input type="text" class="form-control" name="host" value="{{ cfg.host }}"
-                     placeholder="smtp.example.com"
+                     data-i18n-placeholder="smtp.host_placeholder" placeholder="smtp.example.com"
                      style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
             </div>
             <div class="col-md-4">
-              <label class="form-label text-secondary" style="font-size:.8rem;">端口</label>
+              <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="smtp.smtp_port">端口</label>
               <input type="number" class="form-control" name="port" value="{{ cfg.port }}"
                      style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
             </div>
             <div class="col-md-6">
-              <label class="form-label text-secondary" style="font-size:.8rem;">用户名</label>
+              <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="smtp.smtp_username">用户名</label>
               <input type="text" class="form-control" name="username" value="{{ cfg.username }}"
                      style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
             </div>
             <div class="col-md-6">
-              <label class="form-label text-secondary" style="font-size:.8rem;">密码</label>
+              <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="smtp.smtp_password">密码</label>
               <input type="password" class="form-control" name="password" value="{{ cfg.password }}"
                      style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
             </div>
             <div class="col-md-6">
-              <label class="form-label text-secondary" style="font-size:.8rem;">发件邮箱</label>
+              <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="smtp.from_email">发件邮箱</label>
               <input type="email" class="form-control" name="from_email" value="{{ cfg.from_email }}"
                      style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
             </div>
             <div class="col-md-6">
-              <label class="form-label text-secondary" style="font-size:.8rem;">发件人名称</label>
+              <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="smtp.from_name">发件人名称</label>
               <input type="text" class="form-control" name="from_name" value="{{ cfg.from_name }}"
                      style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
             </div>
@@ -54,7 +54,7 @@
               <div class="form-check mt-2">
                 <input class="form-check-input" type="checkbox" name="use_tls" id="useTls"
                        {% if cfg.use_tls %}checked{% endif %} value="true">
-                <label class="form-check-label text-secondary" for="useTls" style="font-size:.875rem;">
+                <label class="form-check-label text-secondary" for="useTls" style="font-size:.875rem;" data-i18n="smtp.use_tls">
                   使用 SSL/TLS（端口 465 时勾选，587 时不勾选）
                 </label>
               </div>
@@ -63,15 +63,22 @@
               <div class="form-check mt-2">
                 <input class="form-check-input" type="checkbox" name="enabled" id="smtpEnabled"
                        {% if cfg.enabled %}checked{% endif %} value="true">
-                <label class="form-check-label text-secondary" for="smtpEnabled" style="font-size:.875rem;">
+                <label class="form-check-label text-secondary" for="smtpEnabled" style="font-size:.875rem;" data-i18n="smtp.enabled">
                   启用邮件通知
                 </label>
               </div>
             </div>
+            <div class="col-md-12">
+              <label class="form-label text-secondary mt-2" style="font-size:.8rem;" data-i18n="smtp.renewal_notify_email">📧 续期通知邮箱（管理员接收续期通知，可填写多个，逗号分隔）</label>
+              <input type="text" class="form-control" name="renewal_notify_email" value="{{ cfg.renewal_notify_email or '' }}"
+                     placeholder="admin@example.com,admin2@example.com"
+                     style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+              <small class="text-secondary" style="font-size:.72rem;" data-i18n="smtp.renewal_notify_hint">当用户自助续期时，系统将向此处填写的邮箱发送通知。留空则不发送。</small>
+            </div>
           </div>
           <div class="d-flex gap-2 mt-4">
             <button type="submit" class="btn btn-success">
-              <i class="bi bi-floppy me-1"></i>保存设置
+              <i class="bi bi-floppy me-1"></i><span data-i18n="smtp.save_btn">保存设置</span>
             </button>
           </div>
         </form>
@@ -80,14 +87,14 @@
 
     <div class="card">
       <div class="card-header py-2 px-3">
-        <small class="fw-semibold text-secondary"><i class="bi bi-send me-1"></i>发送测试邮件</small>
+        <small class="fw-semibold text-secondary"><i class="bi bi-send me-1"></i><span data-i18n="smtp.test_section">发送测试邮件</span></small>
       </div>
       <div class="card-body">
         <div class="d-flex gap-2">
-          <input type="email" id="testEmail" class="form-control" placeholder="接收测试邮件的地址"
+          <input type="email" id="testEmail" class="form-control" data-i18n-placeholder="smtp.test_email_placeholder" placeholder="接收测试邮件的地址"
                  style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
           <button class="btn btn-outline-info" onclick="sendTest()">
-            <i class="bi bi-send me-1"></i>发送
+            <i class="bi bi-send me-1"></i><span data-i18n="smtp.send_test_btn">发送</span>
           </button>
         </div>
         <div id="testResult" class="mt-2" style="font-size:.875rem;"></div>
@@ -96,8 +103,8 @@
 
     <div class="card mt-3">
       <div class="card-body">
-        <h6 class="text-secondary mb-2" style="font-size:.85rem;">📌 提醒规则</h6>
-        <p class="text-secondary mb-0" style="font-size:.82rem; line-height:1.8;">
+        <h6 class="text-secondary mb-2" style="font-size:.85rem;"><span data-i18n="smtp.reminder_title">📌 提醒规则</span></h6>
+        <p class="text-secondary mb-0" style="font-size:.82rem; line-height:1.8;" data-i18n="smtp.reminder_text">
           系统将在用户到期前 <strong>7天、3天、1天</strong>，以及<strong>到期当天</strong>各发送一封提醒邮件。<br>
           用户需要在创建时填写邮箱地址，且本功能已启用，方可接收通知。
         </p>
@@ -111,14 +118,14 @@
 <script>
 async function sendTest(){
   const email=document.getElementById('testEmail').value;
-  if(!email){alert('请输入邮箱地址');return;}
+  if(!email){alert(window.__i18n?window.__i18n('smtp.alert_fill_email','请输入邮箱地址'):'请输入邮箱地址');return;}
   const fd=new FormData();fd.append('to_email',email);
   const r=await fetch('/admin/smtp/test',{method:'POST',body:fd});
   const d=await r.json();
   const el=document.getElementById('testResult');
   el.innerHTML=d.ok
-    ?'<span class="text-success"><i class="bi bi-check-circle me-1"></i>发送成功，请检查收件箱</span>'
-    :'<span class="text-danger"><i class="bi bi-x-circle me-1"></i>'+d.error+'</span>';
+    ?'<span class="text-success"><i class="bi bi-check-circle me-1"></i>'+(window.__i18n?window.__i18n('smtp.test_success','发送成功，请检查收件箱'):'发送成功，请检查收件箱')+'</span>'
+    :'<span class="text-danger"><i class="bi bi-x-circle me-1"></i>'+(window.__i18n?window.__i18n('smtp.test_failed','发送失败'):'发送失败')+': '+d.error+'</span>';
 }
 </script>
 {% endblock %}

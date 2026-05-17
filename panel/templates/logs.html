@@ -1,47 +1,99 @@
 {% extends "base.html" %}
-{% block title %}{{ service }} 日志 — Bot Platform{% endblock %}
+{% block title_i18n %}logs.title{% endblock %}{% block title %}{{ service }} 日志 — HiveDeploy{% endblock %}
 {% block nav_logs_a %}{% if service == 'astrbot' %}active{% endif %}{% endblock %}
 {% block nav_logs_n %}{% if service == 'napcat' %}active{% endif %}{% endblock %}
+{% block nav_logs_l %}{% if service == 'llonebot' %}active{% endif %}{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
   <div>
     <h4 class="mb-0 fw-semibold">
-      <i class="bi bi-terminal me-2"></i>{{ service }} 日志
+      <i class="bi bi-terminal me-2"></i>{{ service }} <span data-i18n="dashboard.logs">日志</span>
     </h4>
-    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;">
-      容器: {{ service }}_{{ user.username }} — 最近 200 行
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;" data-i18n="logs.container_info" data-i18n-params='{"container":"{{ service }}_{{ user.username }}"}'>
+      容器: <span class="tag-pill">{{ service }}_{{ user.username }}</span> — 最近 200 行
     </p>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap">
     {% if service == 'astrbot' %}
-    <a href="/logs/napcat" class="btn btn-sm btn-outline-secondary btn-action">切换到 NapCat</a>
+    <a href="/logs/napcat" class="btn btn-sm btn-outline-info btn-action">
+      <i class="bi bi-arrow-left-right me-1"></i><span data-i18n="logs.switch_to" data-i18n-params='{"service":"NapCat"}'>切换到 NapCat</span>
+    </a>
+    <a href="/logs/llonebot" class="btn btn-sm btn-outline-info btn-action">
+      <i class="bi bi-arrow-left-right me-1"></i><span data-i18n="logs.switch_to" data-i18n-params='{"service":"LLOneBot"}'>切换到 LLOneBot</span>
+    </a>
+    {% elif service == 'napcat' %}
+    <a href="/logs/astrbot" class="btn btn-sm btn-outline-info btn-action">
+      <i class="bi bi-arrow-left-right me-1"></i><span data-i18n="logs.switch_to" data-i18n-params='{"service":"AstrBot"}'>切换到 AstrBot</span>
+    </a>
+    <a href="/logs/llonebot" class="btn btn-sm btn-outline-info btn-action">
+      <i class="bi bi-arrow-left-right me-1"></i><span data-i18n="logs.switch_to" data-i18n-params='{"service":"LLOneBot"}'>切换到 LLOneBot</span>
+    </a>
     {% else %}
-    <a href="/logs/astrbot" class="btn btn-sm btn-outline-secondary btn-action">切换到 AstrBot</a>
+    <a href="/logs/astrbot" class="btn btn-sm btn-outline-info btn-action">
+      <i class="bi bi-arrow-left-right me-1"></i><span data-i18n="logs.switch_to" data-i18n-params='{"service":"AstrBot"}'>切换到 AstrBot</span>
+    </a>
+    <a href="/logs/napcat" class="btn btn-sm btn-outline-info btn-action">
+      <i class="bi bi-arrow-left-right me-1"></i><span data-i18n="logs.switch_to" data-i18n-params='{"service":"NapCat"}'>切换到 NapCat</span>
+    </a>
     {% endif %}
     <button onclick="refreshLogs()" class="btn btn-sm btn-outline-primary btn-action">
-      <i class="bi bi-arrow-clockwise me-1"></i>刷新
+      <i class="bi bi-arrow-clockwise me-1" id="refreshIcon"></i><span data-i18n="logs.refresh">刷新</span>
+    </button>
+    <button onclick="copyLogs()" class="btn btn-sm btn-outline-secondary btn-action" data-i18n-title="logs.copy_all" title="复制全部日志">
+      <i class="bi bi-copy me-1"></i><span data-i18n="logs.copy">复制</span>
     </button>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-body p-0">
-    <div class="log-box" id="logBox">{{ logs }}</div>
+<div class="card mb-3">
+  <div class="card-header py-2 d-flex align-items-center justify-content-between" style="background: rgba(0,0,0,0.3);">
+    <div class="d-flex align-items-center gap-2">
+      <span class="pulse-dot" id="logPulse"></span>
+      <small class="fw-semibold text-secondary">
+        <i class="bi bi-file-code me-1"></i>{{ service }}.log
+      </small>
+      <small class="text-muted" id="liveBadge" style="font-size:.72rem;">
+        <i class="bi bi-broadcast me-1"></i><span data-i18n="logs.live">实时</span>
+      </small>
+    </div>
+    <small class="text-muted" style="font-size:.72rem;" id="lineCount">
+      {{ logs.split('\n')|length if logs else 0 }} <span data-i18n="logs.lines_count" data-i18n-params='{"count":"{{ logs.split('\n')|length if logs else 0 }}"}'>行</span>
+    </small>
+  </div>
+  <div class="card-body p-0" style="position:relative;">
+    <div class="log-box" id="logBox" style="height:500px; letter-spacing: 0.01em; line-height: 1.6;"
+         onclick="copyLogs()" data-i18n-title="logs.copy_all" title="点击复制全部日志">{{ logs }}</div>
   </div>
 </div>
 
-<div class="mt-3">
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
   <label class="d-flex align-items-center gap-2 text-secondary" style="font-size:.875rem; cursor:pointer;">
     <input type="checkbox" id="autoScroll" checked class="form-check-input">
-    自动滚动到底部
+    <span data-i18n="logs.auto_scroll">自动滚动到底部</span>
   </label>
+  <div class="d-flex gap-2 align-items-center">
+    <small class="text-muted" style="font-size:.72rem;" id="refreshTimer"><span data-i18n="logs.next_refresh" data-i18n-params='{"time":"5"}'>下次刷新: 5s</span></small>
+  </div>
+</div>
+
+<div class="alert alert-info py-2 mb-0" style="font-size:.8rem;">
+  <i class="bi bi-lightbulb me-1"></i>
+  <span data-i18n="logs.click_to_copy_hint">点击日志区域即可一键复制全部日志内容。自动每 5 秒刷新（仅在开启自动滚动时）。</span>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 const logBox = document.getElementById('logBox');
+const liveBadge = document.getElementById('liveBadge');
+const logPulse = document.getElementById('logPulse');
+const refreshIcon = document.getElementById('refreshIcon');
+const timerEl = document.getElementById('refreshTimer');
+const lineCount = document.getElementById('lineCount');
+const SERVICE = '{{ service }}';
+let refreshCountdown = 5;
+let refreshInFlight = false;
 
 function scrollBottom() {
   if (document.getElementById('autoScroll').checked) {
@@ -49,15 +101,60 @@ function scrollBottom() {
   }
 }
 
-function refreshLogs() {
-  location.reload();
+async function refreshLogs() {
+  if (refreshInFlight) return;
+  refreshInFlight = true;
+  refreshIcon.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+  refreshIcon.style.transform = 'rotate(360deg)';
+  setTimeout(() => {
+    refreshIcon.style.transition = 'none';
+    refreshIcon.style.transform = 'rotate(0)';
+  }, 500);
+
+  liveBadge.style.color = 'var(--green)';
+  logPulse.classList.add('pulse-dot');
+  logPulse.classList.remove('stopped');
+
+  try {
+    const r = await fetch(`/api/logs/${SERVICE}?lines=200`, {headers: {'Accept': 'application/json'}});
+    const d = await r.json();
+    if (d.ok) {
+      logBox.textContent = d.logs || '';
+      const count = d.logs ? d.logs.split('\n').length : 0;
+      lineCount.textContent = count + ' 行';
+      scrollBottom();
+    }
+  } catch (e) {
+    liveBadge.style.color = 'var(--red)';
+    logPulse.classList.remove('pulse-dot');
+    logPulse.classList.add('stopped');
+  } finally {
+    refreshInFlight = false;
+  }
+}
+
+function copyLogs() {
+  const text = logBox.textContent || '';
+  navigator.clipboard.writeText(text.trim()).then(() => {
+    copyWithToast(text, window.__i18n ? window.__i18n('dashboard.logs', '日志') : '日志');
+  }).catch(() => {
+    showToast(window.__i18n ? window.__i18n('toast.copy_failed', '复制失败') : '复制失败', 'error');
+  });
 }
 
 scrollBottom();
 
-// 每 5 秒自动刷新
 setInterval(() => {
-  if (document.getElementById('autoScroll').checked) refreshLogs();
-}, 5000);
+  refreshCountdown--;
+  if (refreshCountdown <= 0) {
+    if (document.getElementById('autoScroll').checked) {
+      refreshLogs();
+      refreshCountdown = 5;
+    }
+  }
+  timerEl.innerHTML = (window.__i18n ? window.__i18n('logs.next_refresh', '下次刷新: {time}s') : '下次刷新: {time}s').replace('{time}', refreshCountdown);
+}, 1000);
+
+timerEl.innerHTML = (window.__i18n ? window.__i18n('logs.next_refresh', '下次刷新: {time}s') : '下次刷新: {time}s').replace('{time}', '5');
 </script>
 {% endblock %}

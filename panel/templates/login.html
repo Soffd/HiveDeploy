@@ -3,65 +3,332 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>登录 — Bot Platform</title>
+  <title data-i18n="login.title">登录 — HiveDeploy</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
   <style>
-    body { background: #0d1117; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .auth-card { background: #161b22; border: 1px solid #30363d; border-radius: 16px;
-                 width: 100%; max-width: 400px; padding: 2.5rem; }
-    .brand { color: #58a6ff; font-size: 1.6rem; font-weight: 700; }
-    .form-control { background: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 8px; }
-    .form-control:focus { background: #0d1117; border-color: #58a6ff; color: #e6edf3; box-shadow: 0 0 0 3px rgba(88,166,255,.15); }
-    .btn-primary { background: #238636; border: 1px solid #2ea043; border-radius: 8px; }
-    .btn-primary:hover { background: #2ea043; }
-    label { color: #8b949e; font-size: .875rem; }
-    .divider { border-color: #30363d; }
+    :root {
+      --bg-default: #0d1117;
+      --bg-card: #161b22;
+      --border-default: #30363d;
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --amber: #d29922;
+      --orange: #f78166;
+      --red: #f85149;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --transition: 0.2s ease;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background: var(--bg-default);
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      /* Subtle mesh gradient */
+      background-image:
+        radial-gradient(ellipse at 20% 50%, rgba(88,166,255,0.04) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 50%, rgba(63,185,80,0.03) 0%, transparent 60%),
+        radial-gradient(ellipse at 50% 0%, rgba(88,166,255,0.03) 0%, transparent 50%);
+    }
+
+    @keyframes bgPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(88,166,255,0.06) 0%, transparent 70%);
+      animation: bgPulse 6s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes cardFloatIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(88,166,255,0.05), 0 0 0 1px var(--border-default); }
+      50% { box-shadow: 0 0 35px rgba(88,166,255,0.12), 0 0 0 1px rgba(88,166,255,0.25); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes iconFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+
+    @keyframes ripple {
+      to { transform: scale(4); opacity: 0; }
+    }
+
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      width: 100%; max-width: 400px;
+      padding: 2.5rem;
+      position: relative;
+      z-index: 1;
+      animation: cardFloatIn 0.5s ease-out;
+      animation: cardFloatIn 0.5s ease-out, pulseGlow 6s ease-in-out 0.5s infinite;
+    }
+
+    .auth-card::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: 20%; right: 20%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(88,166,255,0.5), transparent);
+      border-radius: 50%;
+    }
+
+    .brand-icon {
+      display: inline-block;
+      animation: iconFloat 3s ease-in-out infinite;
+    }
+
+    .brand {
+      color: var(--blue);
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    .brand-sub {
+      color: var(--text-secondary);
+      font-size: .9rem;
+    }
+
+    .form-control {
+      background: var(--bg-default);
+      border: 1px solid var(--border-default);
+      color: var(--text-primary);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.85rem;
+      font-size: .9rem;
+      transition: all var(--transition);
+    }
+
+    .form-control:focus {
+      background: var(--bg-default);
+      border-color: var(--blue);
+      color: var(--text-primary);
+      box-shadow: 0 0 0 3px rgba(88,166,255,.12), 0 0 15px rgba(88,166,255,0.06);
+    }
+
+    .form-control::placeholder { color: #484f58; }
+
+    .form-label {
+      color: var(--text-secondary);
+      font-size: .85rem;
+      font-weight: 500;
+      margin-bottom: 0.35rem;
+      transition: color var(--transition);
+    }
+
+    .input-group {
+      position: relative;
+    }
+
+    .btn-primary {
+      background: #238636;
+      border: 1px solid #2ea043;
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 1rem;
+      font-weight: 600;
+      font-size: .9rem;
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary:hover {
+      background: #2ea043;
+      border-color: #3fb950;
+      box-shadow: 0 4px 12px rgba(63,185,80,0.25);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-outline-info {
+      border-color: var(--blue);
+      color: var(--blue);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 1rem;
+      font-weight: 500;
+      font-size: .85rem;
+      transition: all var(--transition);
+    }
+
+    .btn-outline-info:hover {
+      background: rgba(88,166,255,0.1);
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .alert {
+      border-radius: var(--radius-sm);
+      font-size: .85rem;
+      animation: fadeInUp 0.3s ease-out;
+    }
+
+    .alert-success {
+      background: rgba(63,185,80,0.1);
+      border-color: rgba(63,185,80,0.25);
+      color: var(--green);
+    }
+
+    .alert-danger {
+      background: rgba(248,81,73,0.1);
+      border-color: rgba(248,81,73,0.25);
+      color: var(--red);
+    }
+
+    .divider {
+      display: flex; align-items: center; gap: 0.75rem;
+      color: var(--text-secondary); font-size: .8rem;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--border-default);
+    }
+
+    .link-hover {
+      color: var(--blue);
+      text-decoration: none;
+      transition: all var(--transition);
+      border-bottom: 1px solid transparent;
+    }
+    .link-hover:hover {
+      color: #79b8ff;
+      border-bottom-color: rgba(88,166,255,0.4);
+    }
+
+    .footer-links {
+      animation: fadeInUp 0.5s ease-out 0.3s both;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 0.75rem; top: 50%; transform: translateY(-50%);
+      color: var(--text-secondary);
+      z-index: 5;
+      transition: color var(--transition);
+      pointer-events: none;
+    }
+
+    .has-icon .form-control {
+      padding-left: 2.5rem;
+    }
+
+    .has-icon:focus-within .input-icon {
+      color: var(--blue);
+    }
+
+    @media (max-width: 440px) {
+      .auth-card {
+        padding: 1.75rem;
+        border-radius: var(--radius-md);
+        margin: 1rem;
+      }
+      .brand { font-size: 1.4rem; }
+    }
   </style>
 </head>
 <body>
 <div class="auth-card">
-  <div class="text-center mb-4">
-    <div class="brand"><i class="bi bi-robot me-2"></i>Bot Platform</div>
-    <p class="text-secondary mt-1 mb-0" style="font-size:.9rem;">多租户机器人托管平台</p>
+  <div class="text-center mb-4" style="animation: fadeInUp 0.4s ease-out;">
+    <div class="brand">
+      <span class="brand-icon" style="display:inline-block;"><i class="bi bi-hexagon-fill me-2"></i></span>HiveDeploy
+    </div>
+    <p class="brand-sub mt-1 mb-0" data-i18n="login.subtitle">多租户机器人托管平台</p>
   </div>
 
   {% if request.query_params.get('registered') %}
-  <div class="alert alert-success py-2 mb-3" style="font-size:.875rem;">
-    <i class="bi bi-check-circle me-1"></i>注册成功，请登录
+  <div class="alert alert-success py-2 mb-3">
+    <i class="bi bi-check-circle me-1"></i><span data-i18n="login.registered_success">注册成功，请登录</span>
+  </div>
+  {% endif %}
+  {% if request.query_params.get('frozen') %}
+  <div class="alert alert-danger py-2 mb-3">
+    <i class="bi bi-shield-lock me-1"></i><span data-i18n="login.frozen_account">账号已被冻结或封禁，如有疑问请联系管理员</span>
   </div>
   {% endif %}
   {% if request.query_params.get('pw_changed') %}
-  <div class="alert alert-success py-2 mb-3" style="font-size:.875rem;">
-    <i class="bi bi-check-circle me-1"></i>密码已修改，请重新登录
+  <div class="alert alert-success py-2 mb-3">
+    <i class="bi bi-check-circle me-1"></i><span data-i18n="login.password_changed">密码已修改，请重新登录</span>
+  </div>
+  {% endif %}
+  {% if request.query_params.get('pw_reset') %}
+  <div class="alert alert-success py-2 mb-3">
+    <i class="bi bi-check-circle me-1"></i><span data-i18n="login.password_reset">密码已重置，请使用新密码登录</span>
   </div>
   {% endif %}
 
   {% if error %}
-  <div class="alert alert-danger py-2 mb-3" style="font-size:.875rem;">
+  <div class="alert alert-danger py-2 mb-3">
     <i class="bi bi-exclamation-triangle me-1"></i>{{ error }}
   </div>
   {% endif %}
 
-  <form method="post" action="/login">
-    <div class="mb-3">
-      <label class="form-label">用户名</label>
-      <input type="text" class="form-control" name="username" required autofocus
-             placeholder="输入用户名">
+  <form method="post" action="/login" style="animation: fadeInUp 0.4s ease-out 0.1s both;">
+    <div class="mb-3 has-icon">
+      <label class="form-label" data-i18n="login.username_label">用户名或邮箱</label>
+      <div class="position-relative">
+        <span class="input-icon"><i class="bi bi-person"></i></span>
+        <input type="text" class="form-control" name="username" required autofocus
+               value="{{ username or '' }}" data-i18n-placeholder="login.username_placeholder" placeholder="输入用户名或邮箱" autocomplete="username">
+      </div>
     </div>
-    <div class="mb-4">
-      <label class="form-label">密码</label>
-      <input type="password" class="form-control" name="password" required
-             placeholder="输入密码">
+    <div class="mb-3 has-icon">
+      <label class="form-label" data-i18n="login.password_label">密码</label>
+      <div class="position-relative">
+        <span class="input-icon"><i class="bi bi-lock"></i></span>
+        <input type="password" class="form-control" name="password" required
+               data-i18n-placeholder="login.password_placeholder" placeholder="输入密码" autocomplete="current-password">
+      </div>
     </div>
-    <button type="submit" class="btn btn-primary w-100">
-      <i class="bi bi-box-arrow-in-right me-1"></i>登录
+    <button type="submit" class="btn btn-primary w-100 mb-3">
+      <i class="bi bi-box-arrow-in-right me-2"></i><span data-i18n="login.login_btn">登录</span>
     </button>
   </form>
 
-  <p class="text-center text-secondary mb-0 mt-3" style="font-size:.78rem;">
-    账号由管理员创建，如需开通请联系管理员
-  </p>
+  <div class="footer-links">
+    <div class="divider mb-3">
+      <span data-i18n="login.or">或</span>
+    </div>
+    <div class="d-flex justify-content-between align-items-center">
+      <a href="/register" class="link-hover" style="font-size:.875rem;">
+        <i class="bi bi-person-plus me-1"></i><span data-i18n="login.register_link">注册账号</span>
+      </a>
+      <a href="/reset-password" class="link-hover" style="font-size:.875rem;">
+        <i class="bi bi-key me-1"></i><span data-i18n="login.forgot_password">忘记密码</span>
+      </a>
+    </div>
+  </div>
 </div>
 </body>
 </html>

@@ -1,153 +1,416 @@
 {% extends "base.html" %}
-{% block title %}管理后台 — Bot Platform{% endblock %}
+{% block title_i18n %}admin.title{% endblock %}{% block title %}管理后台 — HiveDeploy{% endblock %}
+
+{% block head %}
+<style>
+.admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: .9rem;
+}
+.admin-section-title {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  color: var(--text-secondary);
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.admin-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+.admin-quick-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .75rem;
+}
+.admin-quick-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .42rem .72rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: .78rem;
+  background: rgba(255,255,255,.025);
+}
+.admin-quick-nav a:hover {
+  color: var(--accent);
+  border-color: rgba(88,166,255,.35);
+  background: var(--accent-subtle);
+}
+.admin-config-grid,
+.admin-invite-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, .75fr);
+  gap: 1rem;
+  align-items: start;
+}
+.admin-invite-grid {
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, .65fr);
+}
+.admin-config-grid > .card,
+.admin-invite-grid > .card,
+.admin-section > .card,
+.admin-section > .row {
+  margin-bottom: 0 !important;
+  margin-top: 0 !important;
+}
+.admin-create-card .card-body,
+.admin-settings-card .card-body {
+  padding: 1rem;
+}
+.admin-create-card form {
+  display: grid !important;
+  grid-template-columns: 1fr;
+  gap: .85rem !important;
+  align-items: stretch !important;
+}
+.admin-create-card form > [class*="col-"] {
+  width: 100%;
+}
+.admin-create-card .pt-3 {
+  padding-top: 0 !important;
+}
+.admin-create-card button[type="submit"] {
+  width: 100%;
+}
+.admin-settings-card form {
+  align-items: start !important;
+}
+.admin-settings-card form > .col-md-3,
+.admin-settings-card form > .col-md-2 {
+  width: 50%;
+}
+.admin-stats-row .card {
+  height: 100%;
+}
+.admin-table-card .table-responsive {
+  max-height: 520px;
+}
+@media (max-width: 1199px) {
+  .admin-config-grid,
+  .admin-invite-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-create-card form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .admin-settings-card form > .col-md-3,
+  .admin-settings-card form > .col-md-2,
+  .admin-create-card form {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+  .admin-quick-nav {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: .15rem;
+  }
+  .admin-quick-nav a {
+    white-space: nowrap;
+  }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center mb-4">
+<div class="admin-page">
+<div class="page-header d-flex align-items-center mb-4">
   <div>
-    <h4 class="mb-0 fw-semibold"><i class="bi bi-shield-lock me-2"></i>管理后台</h4>
-    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;">平台状态总览</p>
+    <h4 class="mb-0 fw-semibold"><i class="bi bi-shield-lock me-2"></i><span data-i18n="admin.admin_panel">管理后台</span></h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;"><span data-i18n="admin.status_overview">平台状态总览</span></p>
+    <div class="admin-quick-nav">
+      <a href="#admin-overview"><i class="bi bi-activity"></i>状态概览</a>
+      <a href="#admin-config"><i class="bi bi-sliders"></i>配置与创建</a>
+      <a href="/admin/announcements"><i class="bi bi-megaphone"></i>公告设置</a>
+      <a href="#admin-resources"><i class="bi bi-hdd-network"></i>资源列表</a>
+      <a href="#admin-invites"><i class="bi bi-ticket-perforated"></i>邀请码</a>
+    </div>
   </div>
+  <span class="ms-auto tag-pill" id="liveDot" style="opacity:0; transition:opacity 0.4s;">
+    <span class="live-dot me-1"></span><span data-i18n="admin.live">实时</span>
+  </span>
 </div>
 
-{% if request.query_params.get('reset') %}<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i>密码已重置为 123456</div>{% endif %}
-{% if request.query_params.get('created') %}<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i>用户创建成功</div>{% endif %}
+{% if request.query_params.get('reset') %}<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i><span data-i18n="admin.password_reset_ok">密码已重置为 123456</span></div>{% endif %}
+{% if request.query_params.get('created') %}<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i><span data-i18n="admin.user_created">用户创建成功</span></div>{% endif %}
+{% if request.query_params.get('settings_saved') %}<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i><span data-i18n="admin.settings_saved">系统设置已保存</span></div>{% endif %}
 {% if request.query_params.get('error') %}<div class="alert alert-danger py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-exclamation-triangle me-1"></i>{{ request.query_params.get('error') }}</div>{% endif %}
+{% if request.query_params.get('invite_generated') %}<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;"><i class="bi bi-check-circle me-1"></i><span data-i18n="admin.invites_generated" data-i18n-params='{"count":"{{ request.query_params.get('invite_generated') }}"}'>已生成 {{ request.query_params.get('invite_generated') }} 个邀请码</span></div>{% endif %}
+
+<section class="admin-section" id="admin-overview">
+<div class="admin-section-title"><i class="bi bi-activity"></i>状态概览</div>
 
 {# 服务器监控 #}
-<div class="card mb-4">
+<div class="card mb-4 gradient-border-card">
   <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
-    <small class="fw-semibold text-secondary"><i class="bi bi-bar-chart-line me-1"></i>服务器状态</small>
-    <small class="text-secondary" id="statsTime" style="font-size:.75rem;"></small>
+    <div class="d-flex align-items-center gap-2">
+      <div class="hero-icon" style="width:32px;height:32px;font-size:1rem;">
+        <i class="bi bi-cpu"></i>
+      </div>
+      <small class="fw-semibold text-secondary" data-i18n="admin.server_status">服务器状态</small>
+    </div>
+    <small class="text-secondary" id="statsTime" style="font-size:.72rem;"></small>
   </div>
-  <div class="card-body py-2">
+  <div class="card-body py-3">
     <div class="row g-3">
       <div class="col-md-4">
-        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
-          <span class="text-secondary">CPU</span><span id="cpuVal">--</span>
-        </div>
-        <div class="progress" style="height:6px; background:#21262d;">
-          <div id="cpuBar" class="progress-bar bg-info" style="width:0%"></div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
-          <span class="text-secondary">内存</span><span id="memVal">--</span>
-        </div>
-        <div class="progress" style="height:6px; background:#21262d;">
-          <div id="memBar" class="progress-bar bg-success" style="width:0%"></div>
+        <div class="stat-mini-card">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-secondary" style="font-size:.78rem;"><i class="bi bi-cpu-fill me-1" style="color:#58a6ff;"></i>CPU</span>
+            <span id="cpuVal" class="stat-pill fw-bold" style="color:#58a6ff;">--</span>
+          </div>
+          <div class="progress progress-enhanced">
+            <div id="cpuBar" class="progress-bar progress-bar-animated bg-info" style="width:0%"></div>
+          </div>
         </div>
       </div>
       <div class="col-md-4">
-        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
-          <span class="text-secondary">磁盘</span><span id="diskVal">--</span>
+        <div class="stat-mini-card">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-secondary" style="font-size:.78rem;"><i class="bi bi-memory me-1" style="color:#3fb950;"></i><span data-i18n="dashboard.memory">内存</span></span>
+            <span id="memVal" class="stat-pill fw-bold" style="color:#3fb950;">--</span>
+          </div>
+          <div class="progress progress-enhanced">
+            <div id="memBar" class="progress-bar progress-bar-animated bg-success" style="width:0%"></div>
+          </div>
         </div>
-        <div class="progress" style="height:6px; background:#21262d;">
-          <div id="diskBar" class="progress-bar bg-warning" style="width:0%"></div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-mini-card">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-secondary" style="font-size:.78rem;"><i class="bi bi-hdd me-1" style="color:#d29922;"></i><span data-i18n="dashboard.disk">磁盘</span></span>
+            <span id="diskVal" class="stat-pill fw-bold" style="color:#d29922;">--</span>
+          </div>
+          <div class="progress progress-enhanced">
+            <div id="diskBar" class="progress-bar progress-bar-animated bg-warning" style="width:0%"></div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-{# 创建用户 #}
-<div class="card mb-4">
-  <div class="card-header py-2 px-3">
-    <small class="fw-semibold text-secondary"><i class="bi bi-person-plus me-1"></i>创建新用户</small>
+{# 统计卡片 #}
+<div class="row g-3 mb-4 admin-stats-row">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card-enhanced text-center py-3">
+      <div class="hero-icon mx-auto mb-2" style="width:36px;height:36px;font-size:.9rem; background:rgba(88,166,255,0.08); color:#58a6ff; border-color:rgba(88,166,255,0.2);">
+        <i class="bi bi-people"></i>
+      </div>
+      <div class="number-animate" style="font-size:1.6rem; font-weight:700; color:#58a6ff;" data-target="{{ users|length }}">0</div>
+      <div class="text-secondary" style="font-size:.75rem;" data-i18n="admin.registered_users">注册用户</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card-enhanced text-center py-3">
+      <div class="hero-icon mx-auto mb-2" style="width:36px;height:36px;font-size:.9rem; background:rgba(63,185,80,0.08); color:#3fb950; border-color:rgba(63,185,80,0.2);">
+        <i class="bi bi-grid"></i>
+      </div>
+      <div class="number-animate" style="font-size:1.6rem; font-weight:700; color:#3fb950;" data-target="{{ instance_data|length }}">0</div>
+      <div class="text-secondary" style="font-size:.75rem;" data-i18n="admin.running_instances">运行实例</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card-enhanced text-center py-3">
+      <div class="hero-icon mx-auto mb-2" style="width:36px;height:36px;font-size:.9rem; background:rgba(210,153,34,0.08); color:#d29922; border-color:rgba(210,153,34,0.2);">
+        <i class="bi bi-robot"></i>
+      </div>
+      <div class="number-animate" style="font-size:1.6rem; font-weight:700; color:#d29922;" data-target="{{ astrbot_running }}">0</div>
+      <div class="text-secondary" style="font-size:.75rem;" data-i18n="admin.running_astrbot">运行中 AstrBot</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card-enhanced text-center py-3">
+      <div class="hero-icon mx-auto mb-2" style="width:36px;height:36px;font-size:.9rem; background:rgba(247,129,102,0.08); color:#f78166; border-color:rgba(247,129,102,0.2);">
+        <i class="bi bi-chat-dots"></i>
+      </div>
+      <div class="number-animate" style="font-size:1.6rem; font-weight:700; color:#f78166;" data-target="{{ napcat_running }}">0</div>
+      <div class="text-secondary" style="font-size:.75rem;" data-i18n="admin.running_napcat">运行中 NapCat</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card-enhanced text-center py-3">
+      <div class="hero-icon mx-auto mb-2" style="width:36px;height:36px;font-size:.9rem; background:rgba(45,212,191,0.08); color:#2dd4bf; border-color:rgba(45,212,191,0.2);">
+        <i class="bi bi-chat-dots"></i>
+      </div>
+      <div class="number-animate" style="font-size:1.6rem; font-weight:700; color:#2dd4bf;" data-target="{{ llonebot_running }}">0</div>
+      <div class="text-secondary" style="font-size:.75rem;" data-i18n="admin.running_llonebot">运行中 LLOneBot</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="admin-section" id="admin-config">
+<div class="admin-section-title"><i class="bi bi-sliders"></i>配置与创建</div>
+<div class="admin-config-grid">
+
+{# 系统设置 #}
+<div class="card mb-4 admin-settings-card">
+  <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+    <div class="hero-icon" style="width:32px;height:32px;font-size:1rem;">
+      <i class="bi bi-gear"></i>
+    </div>
+    <small class="fw-semibold text-secondary" data-i18n="admin.system_settings">系统设置</small>
   </div>
   <div class="card-body">
-    <form method="post" action="/admin/user/create" class="row g-3 align-items-end">
-      <div class="col-md-2">
-        <label class="form-label text-secondary" style="font-size:.8rem;">用户名</label>
-        <input type="text" class="form-control form-control-sm" name="username" required
-               style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+    <form method="post" action="/admin/settings" class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.max_users_label">最大注册人数（0=不限制）</label>
+        <input type="number" class="form-control form-control-sm" name="max_users" min="0"
+               value="{{ max_users }}"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <span class="text-secondary" style="font-size:.72rem;" data-i18n="admin.current_active_users" data-i18n-params='{"count":"{{ current_users }}"}'>当前活跃 {{ current_users }} 人</span>
       </div>
-      <div class="col-md-2">
-        <label class="form-label text-secondary" style="font-size:.8rem;">邮箱</label>
-        <input type="email" class="form-control form-control-sm" name="email" required
-               style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label text-secondary" style="font-size:.8rem;">初始密码</label>
-        <input type="text" class="form-control form-control-sm" name="password" required
-               style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label text-secondary" style="font-size:.8rem;">有效天数（留空=永久）</label>
-        <input type="number" class="form-control form-control-sm" name="expire_days" min="1"
-               placeholder="如：30"
-               style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
-      </div>
-      <div class="col-md-1 pt-3">
+      <div class="col-md-2 pt-3">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="registration_open" id="regOpenCheck"
+                 value="true" {% if reg_open == 'true' %}checked{% endif %}>
+          <label class="form-check-label text-secondary" for="regOpenCheck" style="font-size:.8rem;" data-i18n="admin.registration_open">开放注册</label>
+        </div>
         <div class="form-check">
-          <input class="form-check-input" type="checkbox" name="is_admin" id="isAdminCheck">
-          <label class="form-check-label text-secondary" for="isAdminCheck" style="font-size:.8rem;">管理员</label>
+          <input class="form-check-input" type="checkbox" name="require_invite_code" id="requireInviteCheck"
+                 value="true" {% if require_invite_code == 'true' %}checked{% endif %}>
+          <label class="form-check-label text-secondary" for="requireInviteCheck" style="font-size:.8rem;" data-i18n="admin.require_invite_code">需要邀请码</label>
         </div>
       </div>
       <div class="col-md-3">
-        <button type="submit" class="btn btn-success btn-sm w-100">
-          <i class="bi bi-person-plus me-1"></i>创建用户
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.invite_min_days">邀请码规则 — 注册天数要求</label>
+        <input type="number" class="form-control form-control-sm mb-2" name="invite_min_days"
+               value="{{ invite_min_days }}" min="0" max="3650"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.invite_monthly_limit">每月生成上限</label>
+        <input type="number" class="form-control form-control-sm mb-2" name="invite_monthly_limit"
+               value="{{ invite_monthly_limit }}" min="0" max="999"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.invite_active_limit">同时可用上限</label>
+        <input type="number" class="form-control form-control-sm mb-2" name="invite_active_limit"
+               value="{{ invite_active_limit }}" min="0" max="999"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.invite_code_bytes">邀请码字节长度（4~32）</label>
+        <input type="number" class="form-control form-control-sm mb-2" name="invite_code_bytes"
+               value="{{ invite_code_bytes }}" min="4" max="32"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <span class="text-secondary" style="font-size:.7rem;" data-i18n="admin.invite_bytes_hint">默认8字节=16位hex，加大可降低碰撞概率</span>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.allowed_email_domains">允许注册邮箱域名</label>
+        <input type="text" class="form-control form-control-sm mb-2" name="allowed_email_domains"
+               value="{{ allowed_domains or '' }}" placeholder="gmail.com,qq.com（逗号分隔，留空=不限制）"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.hub_url">Hub地址</label>
+        <input type="text" class="form-control form-control-sm mb-2" name="hub_url"
+               value="{{ hub_url or '' }}"
+               placeholder="https://panel-hub.example.com（留空=不同步）"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <button type="submit" class="btn btn-info btn-sm text-white btn-action">
+          <i class="bi bi-floppy me-1"></i><span data-i18n="admin.save_settings_btn">保存设置</span>
         </button>
       </div>
     </form>
   </div>
 </div>
 
-{# 统计卡片 #}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="card text-center py-3">
-      <div style="font-size:1.8rem; font-weight:700; color:#58a6ff;">{{ users|length }}</div>
-      <div class="text-secondary small">注册用户</div>
+{# 创建用户 #}
+<div class="card mb-4 admin-create-card">
+  <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+    <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(63,185,80,0.08); color:var(--green); border-color:rgba(63,185,80,0.2);">
+      <i class="bi bi-person-plus"></i>
     </div>
+    <small class="fw-semibold text-secondary" data-i18n="admin.create_new_user">创建新用户</small>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="card text-center py-3">
-      <div style="font-size:1.8rem; font-weight:700; color:#3fb950;">{{ instance_data|length }}</div>
-      <div class="text-secondary small">运行实例</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card text-center py-3">
-      <div style="font-size:1.8rem; font-weight:700; color:#d29922;">
-        {{ astrbot_running }}
+  <div class="card-body">
+    <form method="post" action="/admin/user/create" class="row g-3 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.username">用户名</label>
+        <input type="text" class="form-control form-control-sm" name="username" required
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
       </div>
-      <div class="text-secondary small">运行中 AstrBot</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card text-center py-3">
-      <div style="font-size:1.8rem; font-weight:700; color:#f78166;">
-        {{ napcat_running }}
+      <div class="col-md-2">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.email">邮箱</label>
+        <input type="email" class="form-control form-control-sm" name="email" required
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
       </div>
-      <div class="text-secondary small">运行中 NapCat</div>
-    </div>
+      <div class="col-md-2">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.initial_password">初始密码</label>
+        <input type="text" class="form-control form-control-sm" name="password" required
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.expire_days">有效天数（留空=永久）</label>
+        <input type="number" class="form-control form-control-sm" name="expire_days" min="1"
+               placeholder="如：30"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+      </div>
+      <div class="col-md-1 pt-3">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="is_admin" id="isAdminCheck">
+          <label class="form-check-label text-secondary" for="isAdminCheck" style="font-size:.8rem;" data-i18n="admin.is_admin">管理员</label>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-success btn-sm w-100 btn-action">
+          <i class="bi bi-person-plus me-1"></i><span data-i18n="admin.create_user_btn">创建用户</span>
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
+</div>
+</section>
+
+<section class="admin-section" id="admin-resources">
+<div class="admin-section-title"><i class="bi bi-hdd-network"></i>资源列表</div>
+
 {# 实例列表 #}
-<div class="card mb-4">
-  <div class="card-header py-2 px-3">
-    <small class="fw-semibold text-secondary"><i class="bi bi-grid me-1"></i>所有实例</small>
+<div class="card mb-4 admin-table-card">
+  <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+    <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(163,113,247,0.08); color:var(--purple); border-color:rgba(163,113,247,0.2);">
+      <i class="bi bi-grid"></i>
+    </div>
+    <small class="fw-semibold text-secondary" data-i18n="admin.all_instances">所有实例</small>
+    {% if instance_data %}
+    <span class="count-badge ms-1">{{ instance_data|length }}</span>
+    {% endif %}
   </div>
   {% if instance_data %}
   <div class="table-responsive">
     <table class="table table-dark table-hover mb-0" style="font-size:.875rem;">
-      <thead style="border-bottom:1px solid #30363d;">
+      <thead style="border-bottom:1px solid var(--border-default);">
         <tr>
-          <th class="px-3 py-2 text-secondary fw-normal">用户</th>
-          <th class="py-2 text-secondary fw-normal">AstrBot</th>
-          <th class="py-2 text-secondary fw-normal">NapCat</th>
-          <th class="py-2 text-secondary fw-normal">端口</th>
-          <th class="py-2 text-secondary fw-normal">创建时间</th>
-          <th class="py-2 text-secondary fw-normal">操作</th>
+          <th class="px-3 py-2 text-secondary fw-normal" data-i18n="admin.user_col">用户</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.astrbot_col">AstrBot</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.napcat_col">NapCat</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.llonebot_col">LLOneBot</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.port_col">端口</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.created_at_col">创建时间</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.actions_col">操作</th>
         </tr>
       </thead>
       <tbody>
         {% for item in instance_data %}
-        <tr>
+        <tr class="table-row-fade-in" style="animation-delay:{{ loop.index0 * 0.03 }}s;">
           <td class="px-3 py-2"><span class="fw-semibold">{{ item.username }}</span></td>
           <td class="py-2"><span class="badge bg-{{ status_badge(item.status.get('astrbot','unknown')) }}">{{ item.status.get('astrbot','—') }}</span></td>
           <td class="py-2"><span class="badge bg-{{ status_badge(item.status.get('napcat','unknown')) }}">{{ item.status.get('napcat','—') }}</span></td>
+          <td class="py-2"><span class="badge bg-{{ status_badge(item.status.get('llonebot','unknown')) }}">{{ item.status.get('llonebot','—') }}</span></td>
           <td class="py-2">
             <div class="d-flex flex-column gap-1">
               <span class="tag-pill">AB :{{ item.instance.astrbot_port }}</span>
@@ -158,12 +421,13 @@
           <td class="py-2">
             <div class="d-flex gap-1">
               <form method="post" action="/admin/instance/{{ item.instance.user_id }}/restart">
-                <button class="btn btn-sm btn-outline-secondary" title="重启"><i class="bi bi-arrow-clockwise"></i></button>
+                <button class="btn btn-sm btn-outline-secondary btn-action" data-i18n-title="admin.restart_btn" title="重启"><i class="bi bi-arrow-clockwise"></i></button>
               </form>
-              <a href="http://{{ host }}:{{ item.instance.astrbot_port }}" target="_blank"
-                 class="btn btn-sm btn-outline-primary" title="AstrBot"><i class="bi bi-box-arrow-up-right"></i></a>
-              <a href="http://{{ host }}:{{ item.instance.napcat_web_port }}" target="_blank"
-                 class="btn btn-sm btn-outline-danger" title="NapCat"><i class="bi bi-chat-dots"></i></a>
+              <a href="http://{{ host }}:{{ item.instance.astrbot_port }}" target="_blank" rel="noopener noreferrer"
+                 class="btn btn-sm btn-outline-primary btn-action" data-i18n-title="admin.open_astrbot_btn" title="AstrBot"><i class="bi bi-box-arrow-up-right"></i></a>
+              <a href="http://{{ host }}:{{ item.instance.napcat_web_port }}" target="_blank" rel="noopener noreferrer"
+                 class="btn btn-sm {% if item.instance.bot_type == 'llonebot' %}btn-outline-teal{% else %}btn-outline-danger{% endif %} btn-action"
+                 data-i18n-title="{% if item.instance.bot_type == 'llonebot' %}admin.open_llonebot_btn{% else %}admin.open_napcat_btn{% endif %}" title="{% if item.instance.bot_type == 'llonebot' %}LLOneBot{% else %}NapCat{% endif %}" style="{% if item.instance.bot_type == 'llonebot' %}border-color:#2dd4bf;color:#2dd4bf;{% endif %}"><i class="bi bi-chat-dots"></i></a>
             </div>
           </td>
         </tr>
@@ -172,82 +436,94 @@
     </table>
   </div>
   {% else %}
-  <div class="card-body text-center text-secondary py-4">暂无实例</div>
+  <div class="card-body">
+    <div class="empty-state-card">
+      <span class="empty-state-icon">
+        <i class="bi bi-grid"></i>
+      </span>
+      <p class="text-secondary mb-2" data-i18n="admin.no_instances">暂无实例</p>
+      <p class="text-muted" style="font-size:.8rem;" data-i18n="admin.no_instances_hint">创建用户后将自动生成对应实例</p>
+    </div>
+  </div>
   {% endif %}
 </div>
 
 {# 用户管理 #}
-<div class="card">
-  <div class="card-header py-2 px-3">
-    <small class="fw-semibold text-secondary"><i class="bi bi-people me-1"></i>用户管理</small>
+<div class="card admin-table-card">
+  <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+    <div class="hero-icon" style="width:32px;height:32px;font-size:1rem;">
+      <i class="bi bi-people"></i>
+    </div>
+    <small class="fw-semibold text-secondary" data-i18n="admin.user_management">用户管理</small>
+    <span class="count-badge ms-1">{{ users|length }}</span>
   </div>
   <div class="table-responsive">
     <table class="table table-dark table-hover mb-0" style="font-size:.875rem;">
-      <thead style="border-bottom:1px solid #30363d;">
+      <thead style="border-bottom:1px solid var(--border-default);">
         <tr>
-          <th class="px-3 py-2 text-secondary fw-normal">ID</th>
-          <th class="py-2 text-secondary fw-normal">用户名</th>
-          <th class="py-2 text-secondary fw-normal">邮箱</th>
-          <th class="py-2 text-secondary fw-normal">状态</th>
-          <th class="py-2 text-secondary fw-normal">角色</th>
-          <th class="py-2 text-secondary fw-normal">到期时间</th>
-          <th class="py-2 text-secondary fw-normal">注册时间</th>
-          <th class="py-2 text-secondary fw-normal">操作</th>
+          <th class="px-3 py-2 text-secondary fw-normal" data-i18n="admin.id_col">ID</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.username_col">用户名</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.email_col">邮箱</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.status_col">状态</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.role_col">角色</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.expiry_col">到期时间</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.registered_at_col">注册时间</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.actions_col">操作</th>
         </tr>
       </thead>
       <tbody>
         {% for u in users %}
-        <tr>
+        <tr class="table-row-fade-in" style="animation-delay:{{ loop.index0 * 0.03 }}s;">
           <td class="px-3 py-2 text-secondary">{{ u.id }}</td>
           <td class="py-2 fw-semibold">{{ u.username }}</td>
           <td class="py-2 text-secondary">{{ u.email }}</td>
           <td class="py-2">
-            <span class="badge bg-{{ 'success' if u.is_active else 'secondary' }}">{{ '启用' if u.is_active else '禁用' }}</span>
+            <span class="badge bg-{{ 'success' if u.is_active else 'danger' }}"><span data-i18n="admin.active">{{ '正常' if u.is_active else '已封禁' }}</span></span>
           </td>
           <td class="py-2">
-            {% if u.is_admin %}<span class="badge bg-warning text-dark">管理员</span>
-            {% else %}<span class="text-secondary">普通用户</span>{% endif %}
+            {% if u.is_admin %}<span class="badge bg-warning text-dark" data-i18n="admin.admin_role_label">管理员</span>
+            {% else %}<span class="text-secondary" data-i18n="admin.user_role_label">普通用户</span>{% endif %}
           </td>
           <td class="py-2">
             {% set days_left = days_until_expire(u) %}
             {% if u.expire_at %}
-              {% if days_left <= 0 %}
-              <span class="badge bg-danger">已到期</span>
+              {% if user_expired(u) %}
+              <span class="badge bg-danger" data-i18n="admin.expired_label">已到期</span>
+              {% elif days_left == 0 %}
+              <span class="badge bg-warning text-dark">{{ u.expire_at.strftime('%Y-%m-%d') }} <span data-i18n="admin.today_label">(今天)</span></span>
               {% elif days_left <= 7 %}
-              <span class="badge bg-warning text-dark">{{ u.expire_at.strftime('%Y-%m-%d') }} ({{ days_left }}天)</span>
+              <span class="badge bg-warning text-dark">{{ u.expire_at.strftime('%Y-%m-%d') }} <span data-i18n="admin.days_label" data-i18n-params='{"days":"{{ days_left }}"}'>({{ days_left }}天)</span></span>
               {% else %}
               <span class="text-secondary" style="font-size:.8rem;">{{ u.expire_at.strftime('%Y-%m-%d') }}</span>
               {% endif %}
             {% else %}
-              <span class="text-secondary" style="font-size:.75rem;">永久</span>
+              <span class="text-secondary" style="font-size:.75rem;" data-i18n="admin.permanent_label">永久</span>
             {% endif %}
-            {% if not u.is_admin %}
-            <button class="btn btn-sm btn-link p-0 ms-1" title="设置到期时间"
+            <button class="btn btn-sm btn-link p-0 ms-1" data-i18n-title="admin.set_expiry_btn" title="设置到期时间"
                     data-uid="{{ u.id }}"
                     data-uname="{{ u.username }}"
                     data-expire="{{ u.expire_at.strftime('%Y-%m-%d') if u.expire_at else '' }}"
                     onclick="openExpireModal(this)">
               <i class="bi bi-calendar3" style="color:#58a6ff;"></i>
             </button>
-            {% endif %}
           </td>
           <td class="py-2 text-secondary">{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '—' }}</td>
           <td class="py-2">
             <div class="d-flex gap-1">
               {% if not u.is_admin %}
               <form method="post" action="/admin/user/{{ u.id }}/toggle">
-                <button class="btn btn-sm btn-outline-{{ 'warning' if u.is_active else 'success' }}">{{ '禁用' if u.is_active else '启用' }}</button>
+                <button class="btn btn-sm btn-outline-{{ 'warning' if u.is_active else 'success' }} btn-action"><span data-i18n="{{ 'admin.ban_btn' if u.is_active else 'admin.unban_btn' }}">{{ '封禁' if u.is_active else '解封' }}</span></button>
               </form>
               <form method="post" action="/admin/user/{{ u.id }}/reset_password"
-                    onsubmit="return confirm('将 {{ u.username }} 的密码重置为 123456？')">
-                <button class="btn btn-sm btn-outline-warning" title="重置密码"><i class="bi bi-key"></i></button>
+                    onsubmit="return confirm((window.__i18n ? window.__i18n('admin.confirm_reset_pw', '将 {username} 的密码重置为 123456？') : '将 {username} 的密码重置为 123456？').replace('{username}', '{{ u.username }}'))">
+                <button class="btn btn-sm btn-outline-warning btn-action" data-i18n-title="admin.reset_password_btn" title="重置密码"><i class="bi bi-key"></i></button>
               </form>
               <form method="post" action="/admin/user/{{ u.id }}/delete"
-                    onsubmit="return confirm('确定要删除用户 {{ u.username }} 及其所有实例？')">
-                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i></button>
+                    onsubmit="return confirm((window.__i18n ? window.__i18n('admin.confirm_delete_user', '确定要注销用户 {username} 及其所有实例？注销后释放名额，用户可重新注册。') : '确定要注销用户 {username} 及其所有实例？注销后释放名额，用户可重新注册。').replace('{username}', '{{ u.username }}'))">
+                <button class="btn btn-sm btn-outline-danger btn-action" data-i18n-title="admin.delete_user_btn" title="注销用户"><i class="bi bi-trash3"></i></button>
               </form>
               {% else %}
-              <span class="text-secondary small">—</span>
+              <span class="text-secondary small" data-i18n="admin.admin_note">—</span>
               {% endif %}
             </div>
           </td>
@@ -257,36 +533,259 @@
     </table>
   </div>
 </div>
+</section>
+
+<section class="admin-section" id="admin-invites">
+<div class="admin-section-title"><i class="bi bi-ticket-perforated"></i>邀请码</div>
+<div class="admin-invite-grid">
+
+{# 邀请码管理 #}
+<div class="card mt-4">
+  <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+    <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(210,153,34,0.08); color:var(--amber); border-color:rgba(210,153,34,0.2);">
+      <i class="bi bi-ticket-perforated"></i>
+    </div>
+    <small class="fw-semibold text-secondary" data-i18n="admin.invite_code_management">邀请码管理</small>
+    <span class="count-badge ms-1" style="background:var(--green);">{{ total_active_codes }}</span>
+  </div>
+  <div class="card-body">
+    <form id="inviteGenerateForm" method="post" action="/admin/invite_codes/generate" class="row g-3 align-items-end mb-3">
+      <div class="col-md-2">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.generate_count">生成数量</label>
+        <input id="inviteGenerateCount" type="number" class="form-control form-control-sm" name="count" min="1" max="100" value="1"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+      </div>
+      <div class="col-md-2">
+        <button id="inviteGenerateBtn" type="submit" class="btn btn-success btn-sm btn-action">
+          <i class="bi bi-plus-circle me-1"></i><span data-i18n="admin.generate_invite_btn">生成邀请码</span>
+        </button>
+      </div>
+      <div class="col-md-3">
+        <button type="button" id="purgeUsedBtn" class="btn btn-outline-danger btn-sm btn-action" onclick="purgeUsedInviteCodes()">
+          <i class="bi bi-brush me-1"></i><span data-i18n="admin.purge_used_btn">一键移除已使用邀请码</span>
+        </button>
+      </div>
+    </form>
+    <div id="inviteGenerateMsg" class="mb-2" style="display:none;font-size:.82rem;"></div>
+    <div id="inviteCodesEmpty" class="text-secondary text-center mb-0 py-3" {% if invite_codes %}style="display:none;"{% endif %} data-i18n="admin.no_invite_codes">暂无邀请码</div>
+    <div id="inviteCodesTableWrap" class="table-responsive" {% if not invite_codes %}style="display:none;"{% endif %}>
+      <table class="table table-dark table-hover mb-0" style="font-size:.8rem;">
+        <thead style="border-bottom:1px solid var(--border-default);">
+          <tr>
+            <th class="px-3 py-2 text-secondary fw-normal" data-i18n="admin.code_col">邀请码</th>
+            <th class="py-2 text-secondary fw-normal" data-i18n="admin.source_col">来源</th>
+            <th class="py-2 text-secondary fw-normal" data-i18n="admin.used_col">状态</th>
+            <th class="py-2 text-secondary fw-normal" data-i18n="admin.used_by_col">使用者</th>
+            <th class="py-2 text-secondary fw-normal" data-i18n="admin.created_time_col">生成时间</th>
+            <th class="py-2 text-secondary fw-normal" data-i18n="admin.actions_col">操作</th>
+          </tr>
+        </thead>
+        <tbody id="inviteCodesTbody">
+          {% for ic in invite_codes %}
+          <tr>
+            <td class="px-3 py-2" style="font-family:monospace;font-size:.78rem;">{{ ic.code }}</td>
+            <td class="py-2 text-secondary">{{ ic.source_node }}</td>
+            <td class="py-2">
+              {% if ic.used %}
+              <span class="badge bg-secondary" data-i18n="admin.used">已使用</span>
+              {% else %}
+              <span class="badge bg-success" data-i18n="admin.available">可用</span>
+              {% endif %}
+            </td>
+            <td class="py-2 text-secondary">{{ ic.used_by or '--' }}</td>
+            <td class="py-2 text-secondary">{{ ic.created_at.strftime('%Y-%m-%d %H:%M') if ic.created_at else '--' }}</td>
+            <td class="py-2">
+              {% if not ic.used %}
+              <form method="post" action="/admin/invite_codes/{{ ic.id }}/delete"
+                    onsubmit="return confirm(window.__i18n ? window.__i18n('admin.confirm_delete_invite', '确定删除此邀请码？') : '确定删除此邀请码？')" style="display:inline;">
+                <button class="btn btn-sm btn-outline-danger btn-action"><i class="bi bi-trash3"></i></button>
+              </form>
+              {% else %}
+              <button class="btn btn-sm btn-outline-secondary btn-action" onclick="hideInviteCode({{ ic.id }}, this)" title="从列表中移除"><i class="bi bi-x-lg"></i></button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# 邀请码统计 #}
+<div class="card mt-4">
+  <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+    <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(88,166,255,0.08); color:var(--blue); border-color:rgba(88,166,255,0.2);">
+      <i class="bi bi-bar-chart"></i>
+    </div>
+    <small class="fw-semibold text-secondary" data-i18n="admin.invite_stats">邀请码推广统计</small>
+  </div>
+  <div class="card-body">
+    {% if invite_stats %}
+    <div class="table-responsive">
+      <table class="table table-dark table-hover mb-0" style="font-size:.8rem;">
+        <thead style="border-bottom:1px solid var(--border-default);">
+          <tr>
+            <th class="px-3 py-2 text-secondary fw-normal" data-i18n="admin.user_stats_col">用户</th>
+            <th class="py-2 text-secondary fw-normal" data-i18n="admin.generated_col">生成数量</th>
+            <th class="py-2 text-secondary fw-normal" data-i18n="admin.used_count_col">被使用</th>
+            <th class="py-2 text-secondary fw-normal" data-i18n="admin.usage_rate_col">使用率</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in invite_stats %}
+          <tr>
+            <td class="px-3 py-2">{{ s.username }}</td>
+            <td class="py-2">{{ s.total }}</td>
+            <td class="py-2">{{ s.used_count }}</td>
+            <td class="py-2">{{ s.rate }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-secondary text-center mb-0 py-3" data-i18n="admin.no_stats">暂无统计数据</p>
+    {% endif %}
+  </div>
+</div>
+</div>
+</section>
 
 {# 到期时间弹窗 #}
 <div class="modal fade" id="expireModal" tabindex="-1">
   <div class="modal-dialog modal-sm">
-    <div class="modal-content" style="background:#161b22; border:1px solid #30363d;">
+    <div class="modal-content" style="background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-lg);">
       <div class="modal-header border-0">
-        <h6 class="modal-title">设置到期时间 — <span id="expireUsername"></span></h6>
+        <h6 class="modal-title"><span data-i18n="admin.set_expiry_title" data-i18n-params='{"name":""}'>设置到期时间 —</span> <span id="expireUsername"></span></h6>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body pt-0">
         <div class="d-flex flex-wrap gap-2 mb-3">
-          <button class="btn btn-sm btn-outline-info" onclick="setExpire('add30')">+30天</button>
-          <button class="btn btn-sm btn-outline-info" onclick="setExpire('add90')">+90天</button>
-          <button class="btn btn-sm btn-outline-info" onclick="setExpire('add365')">+1年</button>
-          <button class="btn btn-sm btn-outline-danger" onclick="setExpire('clear')">清除（永久）</button>
+          <button class="btn btn-sm btn-outline-info btn-action" onclick="setExpire('add30')"><span data-i18n="admin.add_30_days">+30天</span></button>
+          <button class="btn btn-sm btn-outline-info btn-action" onclick="setExpire('add90')"><span data-i18n="admin.add_90_days">+90天</span></button>
+          <button class="btn btn-sm btn-outline-info btn-action" onclick="setExpire('add365')"><span data-i18n="admin.add_1_year">+1年</span></button>
+          <button class="btn btn-sm btn-outline-danger btn-action" onclick="setExpire('clear')"><span data-i18n="admin.clear_permanent">清除（永久）</span></button>
         </div>
-        <label class="text-secondary" style="font-size:.8rem;">指定日期</label>
+        <label class="text-secondary" style="font-size:.8rem;" data-i18n="admin.specify_date">指定日期</label>
         <div class="d-flex gap-2 mt-1">
           <input type="date" id="expireDate" class="form-control form-control-sm"
-                 style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
-          <button class="btn btn-sm btn-success" onclick="setExpire('set')">设置</button>
+                 style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+          <button class="btn btn-sm btn-success btn-action" onclick="setExpire('set')"><span data-i18n="admin.set_btn">设置</span></button>
         </div>
         <div id="expireMsg" class="mt-2 text-secondary" style="font-size:.8rem;"></div>
       </div>
     </div>
   </div>
 </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<script>
+function __i(key, fallback) {
+  if (window.__i18n) return window.__i18n(key, fallback);
+  return fallback;
+}
+
+async function hideInviteCode(id, btn) {
+  if (!confirm(__i('admin.hide_invite_confirm', '确定从列表中移除该邀请码？（不会影响已使用的状态，仅从列表移除）'))) return;
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/invite_codes/' + id + '/hide', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      btn.closest('tr').remove();
+    } else {
+      alert(d.error || __i('admin.hide_failed', '移除失败'));
+      btn.disabled = false;
+    }
+  } catch(e) {
+    alert(__i('common.network_error', '网络错误'));
+    btn.disabled = false;
+  }
+}
+
+async function purgeUsedInviteCodes() {
+  if (!confirm(__i('admin.confirm_purge_invites', '确定要移除所有已使用的邀请码？\n\n此操作会将所有已使用（包括从其他节点同步的已使用码）从列表中移除，不会影响任何已注册用户。移除后需要手动刷新页面查看结果。'))) return;
+  const btn = document.getElementById('purgeUsedBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>' + __i('admin.purge_processing', '处理中...');
+  try {
+    const r = await fetch('/admin/invite_codes/purge_used', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      alert(__i('admin.purge_done', '✅ 已移除 {count} 个已使用的邀请码。页面将刷新。').replace('{count}', d.removed));
+      location.reload();
+    } else {
+      alert(d.error || __i('toast.operation_failed', '操作失败'));
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-brush me-1"></i>' + __i('admin.purge_used_btn', '一键移除已使用邀请码');
+    }
+  } catch(e) {
+    alert(__i('common.network_error', '网络错误'));
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-brush me-1"></i>' + __i('admin.purge_used_btn', '一键移除已使用邀请码');
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function inviteRowHtml(code) {
+  return '<tr>' +
+    '<td class="px-3 py-2" style="font-family:monospace;font-size:.78rem;">' + escapeHtml(code.code) + '</td>' +
+    '<td class="py-2 text-secondary">' + escapeHtml(code.source_node || 'local') + '</td>' +
+    '<td class="py-2"><span class="badge bg-success" data-i18n="admin.available">' + __i('admin.available', '可用') + '</span></td>' +
+    '<td class="py-2 text-secondary">--</td>' +
+    '<td class="py-2 text-secondary">' + escapeHtml(code.created_at || '') + '</td>' +
+    '<td class="py-2"><form method="post" action="/admin/invite_codes/' + code.id + '/delete" onsubmit="return confirm(window.__i18n ? window.__i18n(\'admin.confirm_delete_invite\', \'确定删除此邀请码？\') : \'确定删除此邀请码？\')" style="display:inline;">' +
+    '<button class="btn btn-sm btn-outline-danger btn-action"><i class="bi bi-trash3"></i></button></form></td>' +
+    '</tr>';
+}
+
+const inviteGenerateForm = document.getElementById('inviteGenerateForm');
+if (inviteGenerateForm) {
+  inviteGenerateForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const btn = document.getElementById('inviteGenerateBtn');
+    const msg = document.getElementById('inviteGenerateMsg');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>' + __i('profile.invite_generating', '生成中...');
+    msg.style.display = 'none';
+
+    try {
+      const formData = new FormData(inviteGenerateForm);
+      const r = await fetch(inviteGenerateForm.action, {
+        method: 'POST',
+        headers: {'Accept': 'application/json', 'X-Requested-With': 'fetch'},
+        body: formData,
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || __i('profile.invite_generate_failed', '生成失败'));
+
+      const tbody = document.getElementById('inviteCodesTbody');
+      document.getElementById('inviteCodesTableWrap').style.display = '';
+      document.getElementById('inviteCodesEmpty').style.display = 'none';
+      tbody.insertAdjacentHTML('afterbegin', d.codes.map(inviteRowHtml).join(''));
+      msg.className = 'mb-2 text-success';
+      msg.textContent = __i('admin.invites_generated', '已生成 {count} 个邀请码').replace('{count}', d.generated);
+      msg.style.display = '';
+    } catch (e) {
+      msg.className = 'mb-2 text-danger';
+      msg.textContent = e.message || __i('common.network_error', '网络错误');
+      msg.style.display = '';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  });
+}
+</script>
 <script>
 function fmtBytes(b){if(b>1e9)return(b/1e9).toFixed(1)+'GB';return(b/1e6).toFixed(0)+'MB';}
 async function fetchStats(){
@@ -298,10 +797,28 @@ async function fetchStats(){
     document.getElementById('memBar').style.width=d.mem_percent+'%';
     document.getElementById('diskVal').textContent=fmtBytes(d.disk_used)+'/'+fmtBytes(d.disk_total)+' '+d.disk_percent.toFixed(0)+'%';
     document.getElementById('diskBar').style.width=d.disk_percent+'%';
-    document.getElementById('statsTime').textContent='更新于 '+new Date().toLocaleTimeString();
+    document.getElementById('statsTime').textContent=__i('dashboard.updated_at', '更新于 {time}').replace('{time}', new Date().toLocaleTimeString());
+    const dot = document.getElementById('liveDot');
+    dot.style.opacity = '1';
+    setTimeout(() => { dot.style.opacity = '0.4'; }, 600);
   }catch(e){}
 }
 fetchStats(); setInterval(fetchStats,5000);
+
+// Animate stat numbers on page load
+document.querySelectorAll('.number-animate').forEach(el => {
+  const target = parseInt(el.dataset.target) || 0;
+  const duration = 800;
+  const start = performance.now();
+  function step(ts) {
+    const progress = Math.min((ts - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.floor(eased * target);
+    if (progress < 1) requestAnimationFrame(step);
+    else el.textContent = target;
+  }
+  requestAnimationFrame(step);
+});
 
 let _expireUserId=null;
 function openExpireModal(btn){
@@ -322,8 +839,9 @@ async function setExpire(action){
   const d=await r.json();
   if(d.ok){
     document.getElementById('expireMsg').innerHTML=
-      '<span class="text-success">✅ 已更新：'+(d.expire_at||'永久')+'，刷新页面生效</span>';
+      '<span class="text-success">✅ ' + __i('admin.expire_updated', '已更新：{date}，刷新页面生效').replace('{date}', (d.expire_at||__i('admin.permanent_label', '永久'))) + '</span>';
   }
 }
 </script>
 {% endblock %}
+

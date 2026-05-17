@@ -1,48 +1,302 @@
 {% extends "base.html" %}
-{% block title %}控制台 — Bot Platform{% endblock %}
+{% block title_i18n %}dashboard.title{% endblock %}{% block title %}控制台 — HiveDeploy{% endblock %}
+
+{% block head %}
+<style>
+  .dashboard-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .dashboard-hero {
+    border: 1px solid rgba(88, 166, 255, .24);
+    border-radius: 14px;
+    background:
+      linear-gradient(135deg, rgba(88, 166, 255, .14), rgba(46, 160, 67, .07)),
+      var(--bg-surface);
+    padding: 1.1rem;
+    overflow: hidden;
+  }
+  .dashboard-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+  }
+  .dashboard-kicker {
+    color: var(--text-secondary);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+  .dashboard-hero h4 {
+    font-size: 1.2rem;
+    margin: .15rem 0 .35rem;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .dashboard-hero p {
+    color: var(--text-secondary);
+    font-size: .9rem;
+    margin: 0;
+    max-width: 680px;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .dashboard-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    justify-content: flex-end;
+    max-width: 420px;
+  }
+  .dashboard-actions .btn {
+    min-height: 34px;
+    max-width: 205px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dashboard-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .65rem;
+    margin-top: .9rem;
+  }
+  .dashboard-step {
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: rgba(13, 17, 23, .35);
+    padding: .75rem;
+    min-height: 118px;
+  }
+  .dashboard-step .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 50%;
+    background: rgba(88, 166, 255, .16);
+    color: var(--accent);
+    font-size: .75rem;
+    font-weight: 700;
+    margin-bottom: .45rem;
+  }
+  .dashboard-step strong {
+    display: block;
+    font-size: .86rem;
+    color: var(--text-primary);
+    line-height: 1.25;
+    min-height: 2.15em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .dashboard-step span {
+    display: block;
+    color: var(--text-secondary);
+    font-size: .78rem;
+    margin-top: .2rem;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .dashboard-step .step-num {
+    display: inline-flex;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: initial;
+    line-height: 1;
+  }
+  .dashboard-section-title {
+    color: var(--text-secondary);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+  #serverStatsCard {
+    opacity: .92;
+  }
+  #createInstanceCard {
+    border-color: rgba(46, 160, 67, .35);
+  }
+  @media (max-width: 768px) {
+    .dashboard-hero-grid {
+      grid-template-columns: 1fr;
+    }
+    .dashboard-actions {
+      justify-content: flex-start;
+      max-width: none;
+    }
+    .dashboard-actions .btn {
+      width: 100%;
+      max-width: none;
+    }
+    .dashboard-steps {
+      grid-template-columns: 1fr;
+    }
+    .dashboard-hero h4,
+    .dashboard-hero p,
+    .dashboard-step strong,
+    .dashboard-step span {
+      -webkit-line-clamp: unset;
+    }
+    .dashboard-step {
+      min-height: auto;
+    }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center mb-4">
+{% set expired = user_expired(user) %}
+{% set days_left = days_until_expire(user) %}
+{% if instance %}
+  {% set bot_type = instance.bot_type or 'napcat' %}
+  {% if bot_type == 'llonebot' %}
+    {% set bt_name = 'LLOneBot' %}
+    {% set bt_icon = 'bi-chat-dots' %}
+    {% set bt_color = '#2dd4bf' %}
+    {% set bt_btn_class = 'btn-outline-teal' %}
+    {% set bt_logs = '/logs/llonebot' %}
+    {% set bt_terminal = '/terminal/llonebot' %}
+  {% else %}
+    {% set bt_name = 'NapCat' %}
+    {% set bt_icon = 'bi-chat-dots' %}
+    {% set bt_color = '#f78166' %}
+    {% set bt_btn_class = 'btn-outline-danger' %}
+    {% set bt_logs = '/logs/napcat' %}
+    {% set bt_terminal = '/terminal/napcat' %}
+  {% endif %}
+{% endif %}
+<div class="dashboard-page">
+<div class="page-header d-flex align-items-center mb-4">
   <div>
-    <h4 class="mb-0 fw-semibold">我的实例</h4>
+    <h4 class="mb-0 fw-semibold"><span data-i18n="dashboard.page_heading">控制台</span></h4>
     <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;">
-      <i class="bi bi-person me-1"></i>{{ user.username }}
+      <i class="bi bi-person me-1"></i>{{ user.username }} · <span data-i18n="dashboard.page_subtitle">实例创建、入口和排障都在这里</span>
     </p>
+  </div>
+</div>
+
+<div class="dashboard-hero">
+  <div class="dashboard-hero-grid">
+    <div>
+      {% if not instance %}
+      <div class="dashboard-kicker" data-i18n="dashboard.hero_start_kicker">开始使用</div>
+      <h4 data-i18n="dashboard.hero_create_title">先创建一个完整实例</h4>
+      <p data-i18n="dashboard.hero_create_desc">推荐优先创建 AstrBot + NapCat 或 AstrBot + LLOneBot。完整实例会自动准备面板、WebUI 和反向 WS 连接，创建完成后就能进入对应面板继续配置。</p>
+      {% else %}
+      <div class="dashboard-kicker" data-i18n="dashboard.hero_next_kicker">下一步</div>
+      <h4>
+        {% if expired %}
+        <span data-i18n="dashboard.hero_expired_title">账号已到期，需要先续期</span>
+        {% else %}
+        <span data-i18n="dashboard.hero_manage_title">进入面板或查看运行状态</span>
+        {% endif %}
+      </h4>
+      <p>
+        {% if expired %}
+        <span data-i18n="dashboard.hero_expired_desc">到期后实例操作会被限制，续期完成后即可继续管理服务。</span>
+        {% else %}
+        <span data-i18n="dashboard.hero_manage_desc" data-i18n-params='{"bt_name":"{{ bt_name }}"}'>常用入口已经放在这里：打开 AstrBot 面板、进入 {{ bt_name }} WebUI，或直接查看日志和终端定位问题。</span>
+        {% endif %}
+      </p>
+      {% endif %}
+    </div>
+    <div class="dashboard-actions">
+      {% if not instance %}
+      <a href="#createInstanceCard" class="btn btn-success btn-action px-4">
+        <i class="bi bi-plus-circle me-2"></i><span data-i18n="dashboard.hero_create_anchor">去创建实例</span>
+      </a>
+      <a href="#serverStatsCard" class="btn btn-outline-secondary btn-action">
+        <i class="bi bi-speedometer2 me-1"></i><span data-i18n="dashboard.hero_server_status_btn">查看服务器状态</span>
+      </a>
+      {% else %}
+        {% if expired %}
+        <a href="/renew" class="btn btn-success btn-action">
+          <i class="bi bi-arrow-repeat me-1"></i><span data-i18n="dashboard.self_renewal_btn">自助续期</span>
+        </a>
+        {% else %}
+        <a href="http://{{ host }}:{{ effective_astrbot_web_port }}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-action">
+          <i class="bi bi-stars me-1"></i><span data-i18n="dashboard.hero_open_astrbot">打开 AstrBot</span>
+        </a>
+        <a href="http://{{ host }}:{{ effective_bot_web_port }}" target="_blank" rel="noopener noreferrer" class="btn {{ bt_btn_class }} btn-action">
+          <i class="{{ bt_icon }} me-1"></i><span data-i18n="dashboard.hero_open_bot" data-i18n-params='{"bt_name":"{{ bt_name }}"}'>打开 {{ bt_name }}</span>
+        </a>
+        {% endif %}
+        <a href="/logs/astrbot" class="btn btn-outline-secondary btn-action">
+          <i class="bi bi-terminal me-1"></i><span data-i18n="dashboard.hero_astrbot_logs">AstrBot 日志</span>
+        </a>
+        <a href="{{ bt_logs }}" class="btn btn-outline-secondary btn-action">
+          <i class="bi bi-terminal me-1"></i><span data-i18n="dashboard.hero_bot_logs" data-i18n-params='{"bt_name":"{{ bt_name }}"}'>{{ bt_name }} 日志</span>
+        </a>
+        <a href="/terminal/astrbot" class="btn btn-outline-info btn-action">
+          <i class="bi bi-code-square me-1"></i><span data-i18n="dashboard.terminal">终端</span>
+        </a>
+        <a href="/files/astrbot" class="btn btn-outline-info btn-action">
+          <i class="bi bi-folder2-open me-1"></i><span data-i18n="dashboard.files">文件</span>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="dashboard-steps">
+    {% if not instance %}
+    <div class="dashboard-step"><span class="step-num">1</span><strong data-i18n="dashboard.hero_step_create_title">创建完整实例</strong><span data-i18n="dashboard.hero_step_create_desc">选择 NapCat 或 LLOneBot，系统会自动创建配套服务。</span></div>
+    <div class="dashboard-step"><span class="step-num">2</span><strong data-i18n="dashboard.hero_step_wait_title">等待初始化完成</strong><span data-i18n="dashboard.hero_step_wait_desc">进度会在创建区实时显示，完成后刷新状态入口。</span></div>
+    <div class="dashboard-step"><span class="step-num">3</span><strong data-i18n="dashboard.hero_step_panel_title">进入面板配置</strong><span data-i18n="dashboard.hero_step_panel_desc">打开 AstrBot 和 Bot WebUI，按需查看日志或终端。</span></div>
+    {% else %}
+    <div class="dashboard-step"><span class="step-num">1</span><strong data-i18n="dashboard.hero_step_entry_title">服务入口</strong><span data-i18n="dashboard.hero_step_entry_desc" data-i18n-params='{"bt_name":"{{ bt_name }}"}'>AstrBot 面板和 {{ bt_name }} WebUI 是日常配置入口。</span></div>
+    <div class="dashboard-step"><span class="step-num">2</span><strong data-i18n="dashboard.hero_step_tools_title">排查工具</strong><span data-i18n="dashboard.hero_step_tools_desc">日志、终端、文件管理用于定位连接或启动问题。</span></div>
+    <div class="dashboard-step"><span class="step-num">3</span><strong data-i18n="dashboard.hero_step_resources_title">资源与端口</strong><span data-i18n="dashboard.hero_step_resources_desc">下方可查看资源占用、反向 WS 和弹性端口配置。</span></div>
+    {% endif %}
   </div>
 </div>
 
 {# 服务器状态 #}
 <div class="card mb-4" id="serverStatsCard">
   <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
-    <small class="fw-semibold text-secondary"><i class="bi bi-bar-chart-line me-1"></i>服务器状态</small>
-    <small class="text-secondary" id="statsUpdateTime" style="font-size:.75rem;"></small>
+    <small class="dashboard-section-title"><i class="bi bi-bar-chart-line me-1"></i><span data-i18n="dashboard.server_status">服务器状态</span></small>
+    <small class="text-secondary" id="statsUpdateTime" style="font-size:.72rem;"></small>
   </div>
-  <div class="card-body py-2">
+  <div class="card-body py-3">
     <div class="row g-3">
       <div class="col-md-4">
         <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
-          <span class="text-secondary">CPU</span>
-          <span id="cpuVal">--</span>
+          <span class="text-secondary" data-i18n="dashboard.cpu">CPU</span>
+          <span id="cpuVal" class="fw-semibold">--</span>
         </div>
-        <div class="progress" style="height:6px; background:#21262d;">
+        <div class="progress" style="height:6px;">
           <div id="cpuBar" class="progress-bar bg-info" style="width:0%"></div>
         </div>
       </div>
       <div class="col-md-4">
         <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
-          <span class="text-secondary">内存</span>
-          <span id="memVal">--</span>
+          <span class="text-secondary" data-i18n="dashboard.memory">内存</span>
+          <span id="memVal" class="fw-semibold">--</span>
         </div>
-        <div class="progress" style="height:6px; background:#21262d;">
+        <div class="progress" style="height:6px;">
           <div id="memBar" class="progress-bar bg-success" style="width:0%"></div>
         </div>
       </div>
       <div class="col-md-4">
         <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
-          <span class="text-secondary">磁盘</span>
-          <span id="diskVal">--</span>
+          <span class="text-secondary" data-i18n="dashboard.disk">磁盘</span>
+          <span id="diskVal" class="fw-semibold">--</span>
         </div>
-        <div class="progress" style="height:6px; background:#21262d;">
+        <div class="progress" style="height:6px;">
           <div id="diskBar" class="progress-bar bg-warning" style="width:0%"></div>
         </div>
       </div>
@@ -51,95 +305,122 @@
 </div>
 
 {# 无实例 #}
-{% set expired = user_expired(user) %}
-{% set days_left = days_until_expire(user) %}
 
 {# 到期时间 + NapCat Token 信息栏 #}
 <div class="row g-3 mb-4">
-  <div class="col-md-6">
-    <div class="card h-100" style="border-left: 3px solid {% if expired %}#f85149{% elif days_left is not none and days_left <= 7 %}#d29922{% else %}#3fb950{% endif %};">
+  <div class="{% if instance %}col-md-6{% else %}col-12{% endif %}">
+    <div class="card h-100 stat-card" style="border-left-color: {% if expired %}#f85149{% elif days_left is not none and days_left <= 7 %}#d29922{% else %}#3fb950{% endif %};">
       <div class="card-body py-3">
         <div class="text-secondary mb-1" style="font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">
-          <i class="bi bi-clock me-1"></i>账号有效期
+          <i class="bi bi-clock me-1"></i><span data-i18n="dashboard.account_expiry">账号有效期</span>
         </div>
         {% if user.expire_at %}
-          <div class="fw-semibold" style="font-size:1.1rem; color:{% if expired %}#f85149{% elif days_left <= 7 %}#d29922{% else %}#e6edf3{% endif %};">
+          <div class="fw-bold" style="font-size:1.1rem; color:{% if expired %}#f85149{% elif days_left <= 7 %}#d29922{% else %}#e6edf3{% endif %};">
             {{ user.expire_at.strftime('%Y-%m-%d') }}
           </div>
           <div class="mt-1" style="font-size:.82rem; color:#8b949e;">
             {% if expired %}
-              <span style="color:#f85149;"><i class="bi bi-exclamation-circle me-1"></i>已到期，请联系管理员续期</span>
+              <span style="color:#f85149;"><i class="bi bi-exclamation-circle me-1"></i><span data-i18n="dashboard.expired">已到期</span></span>
+              <a href="/renew" class="btn btn-sm btn-success ms-2"><span data-i18n="dashboard.self_renewal_btn">自助续期</span></a>
             {% elif days_left == 0 %}
-              <span style="color:#d29922;"><i class="bi bi-exclamation-triangle me-1"></i>今天到期</span>
+              <span style="color:#d29922;"><i class="bi bi-exclamation-triangle me-1"></i><span data-i18n="dashboard.expires_today">今天到期</span></span>
             {% elif days_left <= 7 %}
-              <span style="color:#d29922;"><i class="bi bi-exclamation-triangle me-1"></i>还剩 {{ days_left }} 天</span>
+              <span style="color:#d29922;"><i class="bi bi-exclamation-triangle me-1"></i><span data-i18n="dashboard.days_left" data-i18n-params='{"days":"{{ days_left }}"}'>还剩 {{ days_left }} 天</span></span>
             {% else %}
-              <span style="color:#3fb950;"><i class="bi bi-check-circle me-1"></i>还剩 {{ days_left }} 天</span>
+              <span style="color:#3fb950;"><i class="bi bi-check-circle me-1"></i><span data-i18n="dashboard.days_left" data-i18n-params='{"days":"{{ days_left }}"}'>还剩 {{ days_left }} 天</span></span>
             {% endif %}
           </div>
         {% else %}
-          <div class="fw-semibold" style="font-size:1.1rem; color:#3fb950;">永久有效</div>
-          <div class="mt-1 text-secondary" style="font-size:.82rem;">无到期限制</div>
+          <div class="fw-bold" style="font-size:1.1rem; color:#3fb950;"><span data-i18n="dashboard.permanent">永久有效</span></div>
+          <div class="mt-1 text-secondary" style="font-size:.82rem;"><span data-i18n="dashboard.no_expiry">无到期限制</span></div>
         {% endif %}
       </div>
     </div>
   </div>
 
+  {% if instance %}
   <div class="col-md-6">
-    <div class="card h-100" style="border-left: 3px solid #58a6ff;">
+    <div class="card h-100 stat-card">
       <div class="card-body py-3">
         <div class="text-secondary mb-1" style="font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">
-          <i class="bi bi-key me-1"></i>NapCat WebUI Token
+          <i class="bi bi-key me-1"></i><span id="tokenLabel" data-i18n="dashboard.webui_token" data-i18n-params='{"bot_type":"{% if instance and instance.bot_type == 'llonebot' %}LLOneBot{% else %}NapCat{% endif %}"}'>{% if instance and instance.bot_type == 'llonebot' %}LLOneBot{% else %}NapCat{% endif %} WebUI Token</span>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <code id="napcatToken" style="font-size:.9rem; color:#58a6ff; letter-spacing:.05em;">获取中...</code>
-          <button class="btn btn-sm btn-outline-secondary" onclick="copyNapcatToken()" id="copyTokenBtn" style="display:none;">
+          <code id="napcatToken" style="font-size:.9rem; color:var(--accent); letter-spacing:.05em;" data-i18n="dashboard.token_fetching">获取中...</code>
+          <button class="btn btn-sm btn-outline-secondary" onclick="copyWithToast(document.getElementById('napcatToken').textContent, 'Token')" id="copyTokenBtn" style="display:none;">
             <i class="bi bi-copy"></i>
           </button>
-          <button class="btn btn-sm btn-outline-secondary" onclick="fetchNapcatToken()" id="refreshTokenBtn" title="重新获取">
+          <button class="btn btn-sm btn-outline-secondary" onclick="fetchNapcatToken()" id="refreshTokenBtn" data-i18n-title="dashboard.refreshing" title="重新获取">
             <i class="bi bi-arrow-clockwise"></i>
           </button>
         </div>
-        <div class="mt-1 text-secondary" style="font-size:.78rem;">用于首次登录 NapCat WebUI</div>
+        <div class="mt-1 text-secondary" style="font-size:.78rem;"><span data-i18n="dashboard.token_first_login" data-i18n-params='{"bot_type":"{% if instance and instance.bot_type == 'llonebot' %}LLOneBot{% else %}NapCat{% endif %}"}'>用于首次登录 <span id="tokenHintLabel">{% if instance and instance.bot_type == 'llonebot' %}LLOneBot{% else %}NapCat{% endif %}</span> WebUI</span></div>
       </div>
     </div>
   </div>
+  {% endif %}
 </div>
 
 {% if not instance %}
-<div class="card py-4">
-  <div class="card-body text-center">
-    <div style="font-size:3rem; margin-bottom:1rem;">🤖</div>
-    <h5 class="mb-2">还没有实例</h5>
-    <p class="text-secondary mb-4" style="font-size:.9rem; max-width:460px; margin:0 auto .75rem;">
-      可以一键创建完整实例，也可以单独创建其中一个服务。
-    </p>
-    <div class="d-flex justify-content-center flex-wrap gap-2 mb-2">
-      <button class="btn btn-success btn-action px-4" id="createBtn" onclick="startCreate()">
-        <i class="bi bi-plus-circle me-2"></i>创建完整实例（AstrBot + NapCat）
-      </button>
-    </div>
-    <div class="d-flex justify-content-center flex-wrap gap-2">
-      <button class="btn btn-outline-primary btn-action" id="createAstrBtn" onclick="startCreateSingle('astrbot')">
-        <i class="bi bi-stars me-1"></i>仅创建 AstrBot
-      </button>
-      <button class="btn btn-outline-danger btn-action" id="createNcBtn" onclick="startCreateSingle('napcat')">
-        <i class="bi bi-chat-dots me-1"></i>仅创建 NapCat
-      </button>
-    </div>
-    <div id="progressBox" class="mt-3 d-none">
-      <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-        <div class="spinner-border spinner-border-sm text-success"></div>
-        <span id="progressStep" class="text-secondary" style="font-size:.875rem;">初始化中...</span>
+<div class="card" id="createInstanceCard">
+  <div class="card-body text-center py-5">
+    <div class="empty-state">
+      <div class="empty-icon">🤖</div>
+      <h5 class="mb-2 fw-semibold"><span data-i18n="dashboard.create_first_instance">创建你的第一个实例</span></h5>
+      <p class="text-secondary mb-4" style="font-size:.9rem; max-width:520px; margin:0 auto .75rem;">
+        <span data-i18n="dashboard.no_instance_desc">可以一键创建完整实例（AstrBot + NapCat 或 AstrBot + LLOneBot），也可以单独创建其中一个服务。</span><br>
+        <small class="text-warning"><span data-i18n="dashboard.no_instance_note">注意：NapCat 与 LLOneBot 功能相同，不能同时部署。</span></small>
+      </p>
+      <div class="d-flex justify-content-center flex-wrap gap-2 mb-2">
+        <button class="btn btn-success btn-action px-4" id="createBtn" onclick="startCreate('napcat')">
+          <i class="bi bi-plus-circle me-2"></i><span data-i18n="dashboard.create_full_napcat">创建完整实例（AstrBot + NapCat）</span>
+        </button>
+        <button class="btn btn-teal btn-action px-4" id="createLlBtn" onclick="startCreate('llonebot')" style="background:#2dd4bf;border-color:#2dd4bf;color:#000;">
+          <i class="bi bi-plus-circle me-2"></i><span data-i18n="dashboard.create_full_llonebot">创建完整实例（AstrBot + LLOneBot）</span>
+        </button>
       </div>
-      <div id="progressDetail" class="text-secondary" style="font-size:.78rem; font-family:monospace;"></div>
+      <div class="d-flex justify-content-center flex-wrap gap-2">
+        <button class="btn btn-outline-primary btn-action" id="createAstrBtn" onclick="startCreateSingle('astrbot')">
+          <i class="bi bi-stars me-1"></i><span data-i18n="dashboard.create_astrbot_only">仅创建 AstrBot</span>
+        </button>
+        <button class="btn btn-outline-danger btn-action" id="createNcBtn" onclick="startCreateSingle('napcat')">
+          <i class="bi bi-chat-dots me-1"></i><span data-i18n="dashboard.create_napcat_only">仅创建 NapCat</span>
+        </button>
+        <button class="btn btn-outline-teal btn-action" id="createLlSingleBtn" onclick="startCreateSingle('llonebot')" style="border-color:#2dd4bf;color:#2dd4bf;">
+          <i class="bi bi-chat-dots me-1"></i><span data-i18n="dashboard.create_llonebot_only">仅创建 LLOneBot</span>
+        </button>
+      </div>
+      <div id="progressBox" class="mt-3 d-none">
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+          <div class="spinner-border spinner-border-sm text-success"></div>
+          <span id="progressStep" class="text-secondary" style="font-size:.875rem;" data-i18n="dashboard.initializing">初始化中...</span>
+        </div>
+        <div id="progressDetail" class="text-secondary" style="font-size:.78rem; font-family:monospace; white-space:pre-wrap; max-height:12em; overflow-y:auto;"></div>
+      </div>
     </div>
   </div>
 </div>
 
 {% else %}
 {% set ab_status = container_status.get('astrbot', 'unknown') %}
-{% set nc_status = container_status.get('napcat', 'unknown') %}
+{% set bot_type = instance.bot_type or 'napcat' %}
+{% if bot_type == 'llonebot' %}
+  {% set bt_status = container_status.get('llonebot', 'unknown') %}
+  {% set bt_name = 'LLOneBot' %}
+  {% set bt_icon = 'bi-chat-dots' %}
+  {% set bt_color = '#2dd4bf' %}
+  {% set bt_btn_class = 'btn-outline-teal' %}
+  {% set bt_logs = '/logs/llonebot' %}
+  {% set bt_terminal = '/terminal/llonebot' %}
+{% else %}
+  {% set bt_status = container_status.get('napcat', 'unknown') %}
+  {% set bt_name = 'NapCat' %}
+  {% set bt_icon = 'bi-chat-dots' %}
+  {% set bt_color = '#f78166' %}
+  {% set bt_btn_class = 'btn-outline-danger' %}
+  {% set bt_logs = '/logs/napcat' %}
+  {% set bt_terminal = '/terminal/napcat' %}
+{% endif %}
 {% set expired = user_expired(user) %}
 
 {# 状态卡片 #}
@@ -148,59 +429,99 @@
     <div class="card stat-card h-100">
       <div class="card-body">
         <div class="d-flex align-items-center justify-content-between mb-2">
-          <span class="text-secondary small"><i class="bi bi-stars me-1"></i>AstrBot</span>
+          <span class="text-secondary small fw-semibold"><i class="bi bi-stars me-1"></i><span data-i18n="dashboard.astrbot">AstrBot</span></span>
           <span class="badge bg-{{ status_badge(ab_status) }}">{{ ab_status }}</span>
         </div>
-        <div class="d-flex align-items-center gap-2 mb-3">
+        <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
           <span class="port-badge">
-            {{ host }}:{{ instance.astrbot_port }}
-            <i class="bi bi-copy ms-1 port-copy" onclick="copyText('{{ host }}:{{ instance.astrbot_port }}')"></i>
+            <span data-i18n="dashboard.port_panel">面板</span> {{ host }}:{{ effective_astrbot_web_port }}
+            <i class="bi bi-copy ms-1 port-copy" onclick="copyWithToast('{{ host }}:{{ effective_astrbot_web_port }}', 'AstrBot ' + (window.__i18n ? window.__i18n('dashboard.copy_panel_addr', '面板地址') : '面板地址'))"></i>
+          </span>
+          <span class="port-badge">
+            WS {{ public_ip }}:{{ effective_astrbot_ws_port }}/ws
+            <i class="bi bi-copy ms-1 port-copy" onclick="copyWithToast('ws://{{ public_ip }}:{{ effective_astrbot_ws_port }}/ws', (window.__i18n ? window.__i18n('dashboard.copy_ws_addr', 'WS 地址') : 'WS 地址'))"></i>
           </span>
         </div>
         {% if not expired %}
-        <a href="http://{{ host }}:{{ instance.astrbot_port }}" target="_blank"
+        <a href="http://{{ host }}:{{ effective_astrbot_web_port }}" target="_blank" rel="noopener noreferrer"
            class="btn btn-sm btn-outline-primary btn-action">
-          <i class="bi bi-box-arrow-up-right me-1"></i>打开面板
+          <i class="bi bi-box-arrow-up-right me-1"></i><span data-i18n="dashboard.open_panel">打开面板</span>
         </a>
         {% endif %}
         <a href="/logs/astrbot" class="btn btn-sm btn-outline-secondary btn-action ms-1">
-          <i class="bi bi-terminal me-1"></i>日志
+          <i class="bi bi-terminal me-1"></i><span data-i18n="dashboard.logs">日志</span>
         </a>
         <a href="/terminal/astrbot" class="btn btn-sm btn-outline-info btn-action ms-1">
-          <i class="bi bi-code-square me-1"></i>终端
+          <i class="bi bi-code-square me-1"></i><span data-i18n="dashboard.terminal">终端</span>
         </a>
       </div>
     </div>
   </div>
   <div class="col-md-6">
-    <div class="card stat-card h-100" style="border-left-color:#f78166;">
+    <div class="card stat-card h-100" style="border-left-color:{{ bt_color }};">
       <div class="card-body">
         <div class="d-flex align-items-center justify-content-between mb-2">
-          <span class="text-secondary small"><i class="bi bi-chat-dots me-1"></i>NapCat</span>
-          <span class="badge bg-{{ status_badge(nc_status) }}">{{ nc_status }}</span>
+          <span class="text-secondary small fw-semibold"><i class="{{ bt_icon }} me-1"></i>{{ bt_name }}</span>
+          <span class="badge bg-{{ status_badge(bt_status) }}">{{ bt_status }}</span>
         </div>
         <div class="d-flex flex-wrap gap-2 mb-3">
           <span class="port-badge">
-            WebUI {{ host }}:{{ instance.napcat_web_port }}
-            <i class="bi bi-copy ms-1 port-copy" onclick="copyText('{{ host }}:{{ instance.napcat_web_port }}')"></i>
-          </span>
-          <span class="port-badge">
-            WS ws://{{ host }}:{{ instance.napcat_ws_port }}
-            <i class="bi bi-copy ms-1 port-copy" onclick="copyText('ws://{{ host }}:{{ instance.napcat_ws_port }}')"></i>
+            WebUI {{ host }}:{{ effective_bot_web_port }}
+            <i class="bi bi-copy ms-1 port-copy" onclick="copyWithToast('{{ host }}:{{ effective_bot_web_port }}', (window.__i18n ? window.__i18n('dashboard.copy_webui_addr', '{bt_name} WebUI 地址') : '{bt_name} WebUI 地址').replace('{bt_name}', '{{ bt_name }}'))"></i>
           </span>
         </div>
         {% if not expired %}
-        <a href="http://{{ host }}:{{ instance.napcat_web_port }}" target="_blank"
-           class="btn btn-sm btn-outline-danger btn-action">
-          <i class="bi bi-box-arrow-up-right me-1"></i>打开面板
+        <a href="http://{{ host }}:{{ effective_bot_web_port }}" target="_blank" rel="noopener noreferrer"
+           class="btn btn-sm {{ bt_btn_class }} btn-action">
+          <i class="bi bi-box-arrow-up-right me-1"></i><span data-i18n="dashboard.open_panel">打开面板</span>
         </a>
         {% endif %}
-        <a href="/logs/napcat" class="btn btn-sm btn-outline-secondary btn-action ms-1">
-          <i class="bi bi-terminal me-1"></i>日志
+        <a href="{{ bt_logs }}" class="btn btn-sm btn-outline-secondary btn-action ms-1">
+          <i class="bi bi-terminal me-1"></i><span data-i18n="dashboard.logs">日志</span>
         </a>
-        <a href="/terminal/napcat" class="btn btn-sm btn-outline-info btn-action ms-1">
-          <i class="bi bi-code-square me-1"></i>终端
+        <a href="{{ bt_terminal }}" class="btn btn-sm btn-outline-info btn-action ms-1">
+          <i class="bi bi-code-square me-1"></i><span data-i18n="dashboard.terminal">终端</span>
         </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# 实例资源占用 #}
+<div class="card mb-4" id="instanceStatsCard">
+  <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between">
+    <small class="fw-semibold text-secondary"><i class="bi bi-speedometer me-1"></i><span data-i18n="dashboard.instance_resources">实例资源占用</span></small>
+    <small class="text-secondary" id="statsRefreshTime" style="font-size:.72rem;"></small>
+  </div>
+  <div class="card-body py-3">
+    <div class="row g-3">
+      {# AstrBot #}
+      <div class="col-md-6">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-stars" style="color:#58a6ff;"></i>
+          <span class="fw-semibold" style="font-size:.85rem;">AstrBot</span>
+          <span class="badge bg-{{ status_badge(ab_status) }} ms-1">{{ ab_status }}</span>
+        </div>
+        <div class="row g-2" id="abStats">
+          <div class="col-6"><div class="res-item" id="ab-cpu"><div class="res-val">—</div><div class="res-key" data-i18n="dashboard.cpu">CPU</div></div></div>
+          <div class="col-6"><div class="res-item" id="ab-mem"><div class="res-val">—</div><div class="res-key" data-i18n="dashboard.memory">内存</div></div></div>
+          <div class="col-6"><div class="res-item" id="ab-disk"><div class="res-val">—</div><div class="res-key" data-i18n="dashboard.data_dir">数据目录</div></div></div>
+          <div class="col-6"><div class="res-item" id="ab-net"><div class="res-val">—</div><div class="res-key" data-i18n="dashboard.network_rx_tx">网络收/发</div></div></div>
+        </div>
+      </div>
+      {# Bot (NapCat / LLOneBot) #}
+      <div class="col-md-6">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="{{ bt_icon }}" style="color:{{ bt_color }};"></i>
+          <span class="fw-semibold" style="font-size:.85rem;">{{ bt_name }}</span>
+          <span class="badge bg-{{ status_badge(bt_status) }} ms-1">{{ bt_status }}</span>
+        </div>
+        <div class="row g-2" id="btStats">
+          <div class="col-6"><div class="res-item" id="bt-cpu"><div class="res-val">—</div><div class="res-key" data-i18n="dashboard.cpu">CPU</div></div></div>
+          <div class="col-6"><div class="res-item" id="bt-mem"><div class="res-val">—</div><div class="res-key" data-i18n="dashboard.memory">内存</div></div></div>
+          <div class="col-6"><div class="res-item" id="bt-disk"><div class="res-val">—</div><div class="res-key" data-i18n="dashboard.data_dir">数据目录</div></div></div>
+          <div class="col-6"><div class="res-item" id="bt-net"><div class="res-val">—</div><div class="res-key" data-i18n="dashboard.network_rx_tx">网络收/发</div></div></div>
+        </div>
       </div>
     </div>
   </div>
@@ -209,73 +530,170 @@
 {# 连接信息 #}
 <div class="card mb-4">
   <div class="card-header py-2 px-3">
-    <small class="fw-semibold text-secondary"><i class="bi bi-plug me-1"></i>连接配置</small>
+    <small class="fw-semibold text-secondary"><i class="bi bi-plug me-1"></i><span data-i18n="dashboard.connection_config">连接配置</span></small>
   </div>
   <div class="card-body">
     <div class="row g-3">
       <div class="col-md-6">
-        <h6 class="text-secondary mb-2" style="font-size:.8rem; text-transform:uppercase;">AstrBot → NapCat（内部）</h6>
-        <p class="text-secondary mb-1" style="font-size:.82rem;">NapCat 内配置反向 WS 地址：</p>
-        <code class="d-block p-2 rounded" style="background:#010409; font-size:.82rem;">
-          ws://astrbot_{{ user.username }}:6199
-        </code>
+        <h6 class="text-secondary mb-2" style="font-size:.8rem; text-transform:uppercase;" data-i18n="dashboard.reverse_ws" data-i18n-params='{"bt_name":"{{ bt_name }}"}'>{{ bt_name }} → AstrBot（反向 WS）</h6>
+        <p class="text-secondary mb-1" style="font-size:.82rem;" data-i18n="dashboard.ws_auto_filled" data-i18n-params='{"bt_name":"{{ bt_name }}"}'>
+          已在 {{ bt_name }} 配置中自动填写的反向 WS 地址：
+        </p>
+        <div class="d-flex align-items-center gap-2">
+          <code id="wsLinkCode" class="d-block p-2 rounded flex-grow-1" style="background:rgba(0,0,0,0.3); font-size:.82rem;">
+            ws://{{ public_ip }}:{{ effective_astrbot_ws_port }}/ws
+          </code>
+          <i class="bi bi-copy port-copy fs-5" onclick="copyWithToast(document.getElementById('wsLinkCode').textContent.trim(), (window.__i18n ? window.__i18n('dashboard.copy_ws_addr', 'WS 地址') : 'WS 地址'))"></i>
+        </div>
+        <p class="text-secondary mt-2 mb-0" style="font-size:.78rem;">
+          <i class="bi bi-info-circle me-1"></i><span data-i18n="dashboard.ws_public_ip_note" data-i18n-params='{"bt_name":"{{ bt_name }}"}'>{{ bt_name }} 通过公网 IP 直连 AstrBot，无需依赖容器内部 hostname。</span>
+        </p>
       </div>
       <div class="col-md-6">
-        <h6 class="text-secondary mb-2" style="font-size:.8rem; text-transform:uppercase;">外部 WebSocket</h6>
-        <code class="d-block p-2 rounded" style="background:#010409; font-size:.82rem;">
-          ws://{{ host }}:{{ instance.napcat_ws_port }}
-        </code>
+        <h6 class="text-secondary mb-2" style="font-size:.8rem; text-transform:uppercase;"><span data-i18n="dashboard.astrbot_admin_panel">AstrBot 管理面板</span></h6>
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <code id="astrbotWebuiCode" class="d-block p-2 rounded flex-grow-1" style="background:rgba(0,0,0,0.3); font-size:.82rem;">
+            http://{{ host }}:{{ effective_astrbot_web_port }}
+          </code>
+          <i class="bi bi-copy port-copy fs-5" onclick="copyWithToast(document.getElementById('astrbotWebuiCode').textContent.trim(), 'AstrBot ' + (window.__i18n ? window.__i18n('dashboard.copy_panel_addr', '面板地址') : '面板地址'))"></i>
+        </div>
+        <h6 class="text-secondary mb-2 mt-3" style="font-size:.8rem; text-transform:uppercase;" data-i18n="dashboard.bot_webui" data-i18n-params='{"bt_name":"{{ bt_name }}"}'>{{ bt_name }} WebUI</h6>
+        <div class="d-flex align-items-center gap-2">
+          <code id="botWebuiCode" class="d-block p-2 rounded flex-grow-1" style="background:rgba(0,0,0,0.3); font-size:.82rem;">
+            http://{{ host }}:{{ effective_bot_web_port }}
+          </code>
+          <i class="bi bi-copy port-copy fs-5" onclick="copyWithToast(document.getElementById('botWebuiCode').textContent.trim(), (window.__i18n ? window.__i18n('dashboard.copy_webui_addr', '{bt_name} WebUI 地址') : '{bt_name} WebUI 地址').replace('{bt_name}', '{{ bt_name }}'))"></i>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 {# 弹性端口 #}
-<div class="card mb-4">
-  <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between"
-       style="cursor:pointer;" onclick="togglePorts()">
+<div class="card mb-4" id="extraPortsCard">
+  <div class="card-header py-2 px-3 collapse-header d-flex align-items-center justify-content-between"
+       onclick="togglePorts()">
     <small class="fw-semibold text-secondary">
-      <i class="bi bi-diagram-2 me-1"></i>弹性端口配置
-      <span class="badge bg-secondary ms-2" style="font-size:.7rem;" id="portCount">
-        {{ extra_ports|length }} 个映射
+      <i class="bi bi-diagram-2 me-1"></i><span data-i18n="dashboard.extra_ports">弹性端口配置</span>
+      {% if extra_ports %}
+      <span class="badge bg-success ms-2" style="font-size:.7rem;" id="portCount" data-i18n="dashboard.ports_active_count" data-i18n-params='{"count":"{{ extra_ports|length }}"}'>
+        {{ extra_ports|length }} 个生效中
       </span>
+      {% else %}
+      <span class="badge bg-secondary ms-2" style="font-size:.7rem;" id="portCount" data-i18n="dashboard.ports_not_configured">未配置</span>
+      {% endif %}
     </small>
-    <i class="bi bi-chevron-down text-secondary" id="portChevron"></i>
+    <i class="bi bi-chevron-down text-secondary collapse-chevron" id="portChevron"></i>
   </div>
   <div id="portsPanel" class="d-none">
-    <div class="card-body">
-      <p class="text-secondary mb-3" style="font-size:.82rem;">
-        为插件 WebUI 或自定义服务分配额外端口。可用端口池：
-        <code>{{ available_extra_ports | join(', ') }}</code>
-      </p>
+
+    {# 已生效配置（只读展示） #}
+    <div class="card-body pb-2" id="activePortsSection">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="fw-semibold" style="font-size:.82rem; color:var(--green);">
+          <i class="bi bi-check-circle-fill me-1"></i><span data-i18n="dashboard.active_port_mappings">当前生效映射</span>
+        </span>
+        <span class="text-secondary" style="font-size:.75rem;" data-i18n="dashboard.active_port_desc">（容器内当前实际绑定的端口）</span>
+      </div>
+      {% if extra_ports %}
+      <div class="table-responsive">
+        <table class="table table-sm mb-0" style="font-size:.8rem;">
+          <thead>
+            <tr style="color:var(--text-secondary);">
+              <th style="padding:.35rem .5rem;" data-i18n="dashboard.service">服务</th>
+              <th style="padding:.35rem .5rem;" data-i18n="dashboard.container_port">容器端口</th>
+              <th style="padding:.35rem .5rem;" data-i18n="dashboard.host_port">→ 宿主端口</th>
+              <th style="padding:.35rem .5rem;" data-i18n="dashboard.note">备注</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ep in extra_ports %}
+            <tr>
+              <td style="padding:.35rem .5rem;">
+                {% if ep.service == 'astrbot' %}
+                <span class="badge" style="background:#1f6feb; font-size:.72rem;">AstrBot</span>
+                {% elif ep.service == 'llonebot' %}
+                <span class="badge" style="background:#2dd4bf; font-size:.72rem;">LLOneBot</span>
+                {% else %}
+                <span class="badge" style="background:#8b2fc9; font-size:.72rem;">NapCat</span>
+                {% endif %}
+              </td>
+              <td style="padding:.35rem .5rem;">
+                <code style="font-size:.78rem; color:var(--text-primary);">{{ ep.container_port }}</code>
+              </td>
+              <td style="padding:.35rem .5rem;">
+                <span class="port-badge" style="font-size:.78rem;">
+                  {{ host }}:{{ ep.host_port }}
+                  <i class="bi bi-copy ms-1 port-copy" onclick="copyWithToast('{{ host }}:{{ ep.host_port }}', (window.__i18n ? window.__i18n('dashboard.copy_port_addr', '端口地址') : '端口地址'))"></i>
+                </span>
+              </td>
+              <td style="padding:.35rem .5rem; color:var(--text-secondary);">
+                {{ ep.label or '—' }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-secondary mb-0" style="font-size:.82rem;" data-i18n="dashboard.no_active_ports">暂无生效的弹性端口映射。</p>
+      {% endif %}
+    </div>
+
+    <hr style="border-color:var(--border-subtle); margin:0;">
+
+    {# 编辑区 #}
+    <div class="card-body pt-3">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="fw-semibold" style="font-size:.82rem; color:var(--accent);">
+          <i class="bi bi-pencil-square me-1"></i><span data-i18n="dashboard.edit_port_mappings">编辑端口映射</span>
+        </span>
+        <span class="text-secondary" style="font-size:.75rem;">
+          <span data-i18n="dashboard.available_host_ports">可用宿主端口池：</span><code style="font-size:.75rem;">{{ available_extra_ports | join(', ') }}</code>
+        </span>
+      </div>
+
+      {# 列标题 #}
+      <div class="row g-2 mb-1 px-1" style="font-size:.72rem; color:var(--text-secondary);">
+        <div class="col-3"><span data-i18n="dashboard.service">服务</span></div>
+        <div class="col-3"><span data-i18n="dashboard.container_port">容器内端口</span></div>
+        <div class="col-3"><span data-i18n="dashboard.host_port">宿主机端口</span></div>
+        <div class="col-2"><span data-i18n="dashboard.note">备注</span></div>
+        <div class="col-1"></div>
+      </div>
+
       <div id="portRows">
         {% for ep in extra_ports %}
         <div class="row g-2 mb-2 align-items-center port-row">
           <div class="col-3">
-            <select class="form-select form-select-sm port-service"
-                    style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+            <select class="form-select form-select-sm port-service">
               <option value="astrbot" {% if ep.service=='astrbot' %}selected{% endif %}>AstrBot</option>
-              <option value="napcat"  {% if ep.service=='napcat'  %}selected{% endif %}>NapCat</option>
+              {% if bot_type == 'napcat' %}
+              <option value="napcat" {% if ep.service=='napcat' %}selected{% endif %}>NapCat</option>
+              {% if ep.service == 'llonebot' %}<option value="llonebot" selected>LLOneBot</option>{% endif %}
+              {% else %}
+              <option value="llonebot" {% if ep.service=='llonebot' %}selected{% endif %}>LLOneBot</option>
+              {% if ep.service == 'napcat' %}<option value="napcat" selected>NapCat</option>{% endif %}
+              {% endif %}
             </select>
           </div>
           <div class="col-3">
             <input type="number" class="form-control form-control-sm port-container"
-                   placeholder="容器端口" value="{{ ep.container_port }}"
-                   style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+                   placeholder="如 8080" value="{{ ep.container_port }}">
           </div>
           <div class="col-3">
-            <select class="form-select form-select-sm port-host"
-                    style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+            <select class="form-select form-select-sm port-host">
               {% for p in available_extra_ports %}
               <option value="{{ p }}" {% if ep.host_port == p %}selected{% endif %}>{{ p }}</option>
               {% endfor %}
-              <option value="{{ ep.host_port }}" {% if ep.host_port not in available_extra_ports %}selected{% endif %}>{{ ep.host_port }}</option>
+              {% if ep.host_port not in available_extra_ports %}
+              <option value="{{ ep.host_port }}" selected>{{ ep.host_port }}</option>
+              {% endif %}
             </select>
           </div>
           <div class="col-2">
             <input type="text" class="form-control form-control-sm port-label"
-                   placeholder="备注" value="{{ ep.label or '' }}"
-                   style="background:#0d1117; border-color:#30363d; color:#e6edf3;">
+                   placeholder="备注" value="{{ ep.label or '' }}">
           </div>
           <div class="col-1">
             <button class="btn btn-sm btn-outline-danger" onclick="this.closest('.port-row').remove()">
@@ -285,15 +703,24 @@
         </div>
         {% endfor %}
       </div>
-      <div class="d-flex gap-2 mt-2">
+
+      <div class="d-flex gap-2 mt-2 flex-wrap">
         <button class="btn btn-sm btn-outline-secondary" onclick="addPortRow()">
-          <i class="bi bi-plus me-1"></i>添加端口
+          <i class="bi bi-plus me-1"></i><span data-i18n="dashboard.add_port_btn">添加端口</span>
         </button>
         <button class="btn btn-sm btn-success" id="savePortsBtn" onclick="savePorts()">
-          <i class="bi bi-floppy me-1"></i>保存并重建容器
+          <i class="bi bi-floppy me-1"></i><span data-i18n="dashboard.save_rebuild_btn">保存并重建容器</span>
         </button>
       </div>
-      <div id="portsMsg" class="mt-2 d-none" style="font-size:.82rem;"></div>
+
+      {# 重建进度 #}
+      <div id="portRebuildBox" class="mt-3 d-none">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <div class="spinner-border spinner-border-sm text-success" id="portRebuildSpinner"></div>
+          <span id="portRebuildStep" class="text-secondary" style="font-size:.875rem;"></span>
+        </div>
+        <div id="portRebuildDetail" class="text-secondary ms-4" style="font-size:.78rem; font-family:monospace; white-space:pre-wrap; max-height:12em; overflow-y:auto;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -301,7 +728,7 @@
 {# 实例管理 #}
 <div class="card">
   <div class="card-header py-2 px-3">
-    <small class="fw-semibold text-secondary"><i class="bi bi-sliders me-1"></i>实例管理</small>
+    <small class="fw-semibold text-secondary"><i class="bi bi-sliders me-1"></i><span data-i18n="dashboard.instance_management">实例管理</span></small>
   </div>
   <div class="card-body">
     {% if not expired %}
@@ -309,65 +736,65 @@
       {# AstrBot 操作 #}
       <div class="col-md-6">
         <div class="d-flex align-items-center gap-2 mb-2">
-          <span class="text-secondary" style="font-size:.82rem; min-width:60px;"><i class="bi bi-stars me-1"></i>AstrBot</span>
+          <span class="text-secondary fw-semibold" style="font-size:.82rem; min-width:60px;"><i class="bi bi-stars me-1"></i>AstrBot</span>
           <span class="badge bg-{{ status_badge(ab_status) }}">{{ ab_status }}</span>
         </div>
         <div class="d-flex flex-wrap gap-2">
           <form method="post" action="/api/instance/start/astrbot">
-            <button class="btn btn-sm btn-outline-success btn-action" {% if ab_status == 'running' %}disabled{% endif %} title="启动 AstrBot">
-              <i class="bi bi-play-fill me-1"></i>启动
+            <button class="btn btn-sm btn-outline-success btn-action" {% if ab_status == 'running' %}disabled{% endif %} data-i18n-title="dashboard.start" title="启动 AstrBot">
+              <i class="bi bi-play-fill me-1"></i><span data-i18n="dashboard.start">启动</span>
             </button>
           </form>
           <form method="post" action="/api/instance/stop/astrbot">
-            <button class="btn btn-sm btn-outline-warning btn-action" {% if ab_status != 'running' %}disabled{% endif %} title="停止 AstrBot">
-              <i class="bi bi-stop-fill me-1"></i>停止
+            <button class="btn btn-sm btn-outline-warning btn-action" {% if ab_status != 'running' %}disabled{% endif %} data-i18n-title="dashboard.stop" title="停止 AstrBot">
+              <i class="bi bi-stop-fill me-1"></i><span data-i18n="dashboard.stop">停止</span>
             </button>
           </form>
           <form method="post" action="/api/instance/restart/astrbot">
-            <button class="btn btn-sm btn-outline-secondary btn-action" title="重启 AstrBot">
-              <i class="bi bi-arrow-clockwise me-1"></i>重启
+            <button class="btn btn-sm btn-outline-secondary btn-action" data-i18n-title="dashboard.restart" title="重启 AstrBot">
+              <i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="dashboard.restart">重启</span>
             </button>
           </form>
-          <button class="btn btn-sm btn-outline-primary btn-action" onclick="startCreate('astrbot')" title="重新创建 AstrBot 容器">
-            <i class="bi bi-plus-circle me-1"></i>重建
+          <button class="btn btn-sm btn-outline-primary btn-action" onclick="startCreate('astrbot')" data-i18n-title="dashboard.rebuild" title="重新创建 AstrBot 容器">
+            <i class="bi bi-plus-circle me-1"></i><span data-i18n="dashboard.rebuild">重建</span>
           </button>
           <form method="post" action="/api/instance/delete/astrbot"
-                onsubmit="return confirm('确定删除 AstrBot 容器？数据目录保留。')">
-            <button class="btn btn-sm btn-outline-danger btn-action" title="删除 AstrBot 容器">
+                onsubmit="return confirm((window.__i18n ? window.__i18n('dashboard.confirm_delete_container', '确定删除 {name} 容器？数据目录保留。') : '确定删除 {name} 容器？数据目录保留。').replace('{name}', 'AstrBot'))">
+            <button class="btn btn-sm btn-outline-danger btn-action" data-i18n-title="dashboard.delete" title="删除 AstrBot 容器">
               <i class="bi bi-trash3"></i>
             </button>
           </form>
         </div>
       </div>
 
-      {# NapCat 操作 #}
+      {# Bot 操作 (NapCat / LLOneBot) #}
       <div class="col-md-6">
         <div class="d-flex align-items-center gap-2 mb-2">
-          <span class="text-secondary" style="font-size:.82rem; min-width:60px;"><i class="bi bi-chat-dots me-1"></i>NapCat</span>
-          <span class="badge bg-{{ status_badge(nc_status) }}">{{ nc_status }}</span>
+          <span class="text-secondary fw-semibold" style="font-size:.82rem; min-width:60px;"><i class="{{ bt_icon }} me-1"></i>{{ bt_name }}</span>
+          <span class="badge bg-{{ status_badge(bt_status) }}">{{ bt_status }}</span>
         </div>
         <div class="d-flex flex-wrap gap-2">
-          <form method="post" action="/api/instance/start/napcat">
-            <button class="btn btn-sm btn-outline-success btn-action" {% if nc_status == 'running' %}disabled{% endif %} title="启动 NapCat">
-              <i class="bi bi-play-fill me-1"></i>启动
+          <form method="post" action="/api/instance/start/{{ bot_type }}">
+            <button class="btn btn-sm btn-outline-success btn-action" {% if bt_status == 'running' %}disabled{% endif %} data-i18n-title="dashboard.start" title="启动 {{ bt_name }}">
+              <i class="bi bi-play-fill me-1"></i><span data-i18n="dashboard.start">启动</span>
             </button>
           </form>
-          <form method="post" action="/api/instance/stop/napcat">
-            <button class="btn btn-sm btn-outline-warning btn-action" {% if nc_status != 'running' %}disabled{% endif %} title="停止 NapCat">
-              <i class="bi bi-stop-fill me-1"></i>停止
+          <form method="post" action="/api/instance/stop/{{ bot_type }}">
+            <button class="btn btn-sm btn-outline-warning btn-action" {% if bt_status != 'running' %}disabled{% endif %} data-i18n-title="dashboard.stop" title="停止 {{ bt_name }}">
+              <i class="bi bi-stop-fill me-1"></i><span data-i18n="dashboard.stop">停止</span>
             </button>
           </form>
-          <form method="post" action="/api/instance/restart/napcat">
-            <button class="btn btn-sm btn-outline-secondary btn-action" title="重启 NapCat">
-              <i class="bi bi-arrow-clockwise me-1"></i>重启
+          <form method="post" action="/api/instance/restart/{{ bot_type }}">
+            <button class="btn btn-sm btn-outline-secondary btn-action" data-i18n-title="dashboard.restart" title="重启 {{ bt_name }}">
+              <i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="dashboard.restart">重启</span>
             </button>
           </form>
-          <button class="btn btn-sm btn-outline-primary btn-action" onclick="startCreate('napcat')" title="重新创建 NapCat 容器">
-            <i class="bi bi-plus-circle me-1"></i>重建
+          <button class="btn btn-sm btn-outline-primary btn-action" onclick="startCreate('{{ bot_type }}')" data-i18n-title="dashboard.rebuild" title="重新创建 {{ bt_name }} 容器">
+            <i class="bi bi-plus-circle me-1"></i><span data-i18n="dashboard.rebuild">重建</span>
           </button>
-          <form method="post" action="/api/instance/delete/napcat"
-                onsubmit="return confirm('确定删除 NapCat 容器？数据目录保留。')">
-            <button class="btn btn-sm btn-outline-danger btn-action" title="删除 NapCat 容器">
+          <form method="post" action="/api/instance/delete/{{ bot_type }}"
+                onsubmit="return confirm((window.__i18n ? window.__i18n('dashboard.confirm_delete_container', '确定删除 {name} 容器？数据目录保留。') : '确定删除 {name} 容器？数据目录保留。').replace('{name}', '{{ bt_name }}'))">
+            <button class="btn btn-sm btn-outline-danger btn-action" data-i18n-title="dashboard.delete" title="删除 {{ bt_name }} 容器">
               <i class="bi bi-trash3"></i>
             </button>
           </form>
@@ -376,33 +803,42 @@
     </div>
 
     {# 全局操作 #}
-    <div class="d-flex flex-wrap gap-2 pt-2" style="border-top:1px solid #30363d;">
+    <div class="d-flex flex-wrap gap-2 pt-2" style="border-top:1px solid var(--border-subtle);">
       <form method="post" action="/api/instance/start">
-        <button class="btn btn-sm btn-success btn-action"><i class="bi bi-play-fill me-1"></i>全部启动</button>
+        <button class="btn btn-sm btn-success btn-action"><i class="bi bi-play-fill me-1"></i><span data-i18n="dashboard.start_all">全部启动</span></button>
       </form>
       <form method="post" action="/api/instance/stop">
-        <button class="btn btn-sm btn-warning btn-action"><i class="bi bi-stop-fill me-1"></i>全部停止</button>
+        <button class="btn btn-sm btn-warning btn-action"><i class="bi bi-stop-fill me-1"></i><span data-i18n="dashboard.stop_all">全部停止</span></button>
       </form>
       <form method="post" action="/api/instance/restart">
-        <button class="btn btn-sm btn-secondary btn-action"><i class="bi bi-arrow-clockwise me-1"></i>全部重启</button>
+        <button class="btn btn-sm btn-secondary btn-action"><i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="dashboard.restart_all">全部重启</span></button>
       </form>
+      {% if bot_type == 'napcat' %}
+      <button type="button" class="btn btn-sm btn-outline-success btn-action" id="autoConfigBtn" onclick="autoConfigNapcat()">
+        <i class="bi bi-magic me-1"></i><span data-i18n="dashboard.auto_config_connect">一键配置连接（Beta）</span>
+      </button>
+      {% endif %}
 
       {# 更新按钮组 #}
       <div class="dropdown">
         <button class="btn btn-sm btn-info btn-action dropdown-toggle" data-bs-toggle="dropdown">
-          <i class="bi bi-cloud-download me-1"></i>更新镜像
+          <i class="bi bi-cloud-download me-1"></i><span data-i18n="dashboard.update_image">更新镜像</span>
         </button>
-        <ul class="dropdown-menu dropdown-menu-dark" style="background:#161b22; border-color:#30363d;">
-          <li><a class="dropdown-item" href="#" onclick="startUpdate('both')"><i class="bi bi-arrow-repeat me-1"></i>全部更新</a></li>
-          <li><hr class="dropdown-divider" style="border-color:#30363d;"></li>
-          <li><a class="dropdown-item" href="#" onclick="startUpdate('astrbot')">仅更新 AstrBot</a></li>
-          <li><a class="dropdown-item" href="#" onclick="startUpdate('napcat')">仅更新 NapCat</a></li>
+        <ul class="dropdown-menu dropdown-menu-dark">
+          <li><a class="dropdown-item" href="#" onclick="startUpdate('both')"><i class="bi bi-arrow-repeat me-1"></i><span data-i18n="dashboard.update_all" data-i18n-params='{"bt_name":"{{ bt_name }}"}'>全部更新（AstrBot + {{ bt_name }}）</span></a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="#" onclick="startUpdate('astrbot')"><i class="bi bi-stars me-1"></i><span data-i18n="dashboard.update_astrbot_only">仅更新 AstrBot</span></a></li>
+          <li><a class="dropdown-item" href="#" onclick="startUpdate('{{ bot_type }}')"><i class="{{ bt_icon }} me-1"></i><span data-i18n="dashboard.update_bot_only" data-i18n-params='{"bt_name":"{{ bt_name }}"}'>仅更新 {{ bt_name }}</span></a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="#" onclick="switchBotType('{{ 'llonebot' if bot_type == 'napcat' else 'napcat' }}')" style="color:#d29922;">
+            <i class="bi bi-arrow-left-right me-1"></i><span data-i18n="dashboard.switch_to" data-i18n-params='{"target":"{{ 'LLOneBot' if bot_type == 'napcat' else 'NapCat' }}"}'>切换至 {{ 'LLOneBot' if bot_type == 'napcat' else 'NapCat' }}</span>
+          </a></li>
         </ul>
       </div>
 
       <form method="post" action="/api/instance/delete"
-            onsubmit="return confirm('确定要删除实例？容器将被销毁（数据目录保留）')" class="ms-auto">
-        <button class="btn btn-sm btn-outline-danger btn-action"><i class="bi bi-trash3 me-1"></i>删除实例</button>
+            onsubmit="return confirm(window.__i18n ? window.__i18n('dashboard.confirm_delete_instance', '确定要删除实例？容器将被销毁（数据目录保留）') : '确定要删除实例？容器将被销毁（数据目录保留）')" class="ms-auto">
+        <button class="btn btn-sm btn-outline-danger btn-action"><i class="bi bi-trash3 me-1"></i><span data-i18n="dashboard.delete_instance">删除实例</span></button>
       </form>
     </div>
 
@@ -412,39 +848,67 @@
         <div class="spinner-border spinner-border-sm text-primary"></div>
         <span id="singleCreateStep" class="text-secondary" style="font-size:.875rem;"></span>
       </div>
-      <div id="singleCreateDetail" class="text-secondary ms-4" style="font-size:.78rem; font-family:monospace;"></div>
+      <div id="singleCreateDetail" class="text-secondary ms-4" style="font-size:.78rem; font-family:monospace; white-space:pre-wrap; max-height:12em; overflow-y:auto;"></div>
     </div>
 
     {% else %}
     <div class="alert alert-danger py-2 px-3 mb-0" style="font-size:.875rem;">
-      <i class="bi bi-lock me-1"></i>账号已到期，实例操作已被限制。请联系管理员续期。
+      <i class="bi bi-lock me-1"></i><span data-i18n="dashboard.account_expired_lock">账号已到期，实例操作已被限制。</span>
+      <a href="/renew" class="btn btn-sm btn-success ms-2"><span data-i18n="dashboard.self_renewal_btn">自助续期</span></a>
     </div>
     {% endif %}
 
     <div class="d-flex flex-wrap gap-2 mt-2" {% if expired %}style="display:none!important;"{% endif %}>
     </div>
   </div>
-  <div id="updateProgressBox" class="card-body border-top d-none" style="border-color:#30363d!important;">
+  <div id="updateProgressBox" class="card-body border-top d-none" style="border-color:var(--border-subtle)!important;">
     <div class="d-flex align-items-center gap-2 mb-1">
       <div class="spinner-border spinner-border-sm text-info" id="updateSpinner"></div>
       <span id="updateStep" class="text-secondary" style="font-size:.875rem;"></span>
     </div>
-    <div id="updateDetail" class="text-secondary ms-4" style="font-size:.78rem; font-family:monospace;"></div>
+    <div id="updateDetail" class="text-secondary ms-4" style="font-size:.78rem; font-family:monospace; white-space:pre-wrap; max-height:12em; overflow-y:auto;"></div>
   </div>
 </div>
 {% endif %}
 
+{# 默认端口覆盖确认弹窗 #}
+<div class="modal fade" id="defaultPortConfirmModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-lg);">
+      <div class="modal-header border-0">
+        <h6 class="modal-title" style="color:var(--text-primary);">
+          <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i><span data-i18n="dashboard.confirm_port_override_title">确认修改默认端口映射</span>
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-0" id="defaultPortConfirmBody" style="color:var(--text-secondary); font-size:.875rem;">
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal"><span data-i18n="dashboard.cancel">取消</span></button>
+        <button type="button" class="btn btn-warning btn-sm" id="confirmPortOverrideBtn">
+          <i class="bi bi-check-lg me-1"></i><span data-i18n="dashboard.port_override_confirm_btn">确认修改</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+function __i(key, fallback) {
+  if (window.__i18n) return window.__i18n(key, fallback);
+  return fallback;
+}
+
 // NapCat Token
 async function fetchNapcatToken(){
   const el=document.getElementById('napcatToken');
   const copyBtn=document.getElementById('copyTokenBtn');
   if(!el)return;
-  el.textContent='获取中...';
+  el.textContent=__i('dashboard.token_fetching', '获取中...');
   copyBtn.style.display='none';
   try{
     const d=await(await fetch('/api/instance/napcat_token')).json();
@@ -452,25 +916,42 @@ async function fetchNapcatToken(){
       el.textContent=d.token;
       copyBtn.style.display='';
     } else {
-      el.textContent='暂未找到（容器可能刚启动）';
+      el.textContent=__i('dashboard.token_not_found', '暂未找到（容器可能刚启动）');
     }
   }catch(e){
-    el.textContent='获取失败';
+    el.textContent=__i('dashboard.token_fetch_failed', '获取失败');
   }
-}
-function copyNapcatToken(){
-  const t=document.getElementById('napcatToken').textContent;
-  navigator.clipboard.writeText(t).then(()=>{
-    const btn=document.getElementById('copyTokenBtn');
-    const orig=btn.innerHTML;
-    btn.innerHTML='<i class="bi bi-check2"></i>';
-    setTimeout(()=>btn.innerHTML=orig,1500);
-  });
 }
 {% if instance %}fetchNapcatToken();{% endif %}
 
 
 function fmtBytes(b){if(b>1e9)return(b/1e9).toFixed(1)+'GB';return(b/1e6).toFixed(0)+'MB';}
+// 实例资源占用
+function fmtB(b){if(!b||b<=0)return'0';if(b>1073741824)return(b/1073741824).toFixed(2)+'GB';if(b>1048576)return(b/1048576).toFixed(0)+'MB';return(b/1024).toFixed(0)+'KB';}
+function setRes(prefix,data){
+  if(data.error){['cpu','mem','disk','net'].forEach(k=>{const el=document.getElementById(`${prefix}-${k}`);if(el)el.querySelector('.res-val').textContent='—';});return;}
+  const cpuEl=document.getElementById(`${prefix}-cpu`);
+  const memEl=document.getElementById(`${prefix}-mem`);
+  const diskEl=document.getElementById(`${prefix}-disk`);
+  const netEl=document.getElementById(`${prefix}-net`);
+  if(cpuEl){const p=data.cpu_pct||0;cpuEl.querySelector('.res-val').textContent=p.toFixed(1)+'%';cpuEl.querySelector('.res-val').style.color=p>80?'#f85149':p>50?'#d29922':'#3fb950';}
+  if(memEl){const p=data.mem_pct||0;memEl.querySelector('.res-val').innerHTML=fmtB(data.mem_rss)+'<br><span style="font-size:.7rem;font-weight:400;color:#8b949e;">'+p.toFixed(0)+'% / '+fmtB(data.mem_limit)+'</span>';memEl.querySelector('.res-val').style.color=p>80?'#f85149':p>60?'#d29922':'#e6edf3';}
+  if(diskEl)diskEl.querySelector('.res-val').textContent=fmtB(data.data_size);
+  if(netEl)netEl.querySelector('.res-val').innerHTML='↓'+fmtB(data.net_rx)+'<br><span style="font-size:.7rem;font-weight:400;">↑'+fmtB(data.net_tx)+'</span>';
+}
+async function fetchInstanceStats(){
+  try{
+    const d=await(await fetch('/api/instance/stats')).json();
+    if(d.error)return;
+    setRes('ab',d.astrbot);
+    const btData = d.llonebot && !d.llonebot.error ? d.llonebot : d.napcat;
+    setRes('bt',btData);
+    document.getElementById('statsRefreshTime').textContent=__i('dashboard.updated_at', '更新于 {time}').replace('{time}', new Date().toLocaleTimeString());
+  }catch(e){}
+}
+{% if instance %}fetchInstanceStats();setInterval(fetchInstanceStats,30000);{% endif %}
+
+// 服务器监控
 async function fetchStats(){
   try{
     const d=await(await fetch('/api/server/stats')).json();
@@ -480,44 +961,69 @@ async function fetchStats(){
     document.getElementById('memBar').style.width=d.mem_percent+'%';
     document.getElementById('diskVal').textContent=fmtBytes(d.disk_used)+'/'+fmtBytes(d.disk_total)+' '+d.disk_percent.toFixed(0)+'%';
     document.getElementById('diskBar').style.width=d.disk_percent+'%';
-    document.getElementById('statsUpdateTime').textContent='更新于 '+new Date().toLocaleTimeString();
+    document.getElementById('statsUpdateTime').textContent=__i('dashboard.updated_at', '更新于 {time}').replace('{time}', new Date().toLocaleTimeString());
   }catch(e){}
 }
 fetchStats(); setInterval(fetchStats,5000);
 
+async function autoConfigNapcat(){
+  const btn=document.getElementById('autoConfigBtn');
+  if(!btn)return;
+  if(!confirm(__i('dashboard.auto_config_confirm', '将自动覆写 AstrBot 与 NapCat 的反向 WebSocket 配置，并重启两个容器使配置生效。确定继续？')))return;
+  const old=btn.innerHTML;
+  btn.disabled=true;
+  btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>'+__i('dashboard.auto_config_working', '配置中...');
+  try{
+    const resp=await fetch('/api/instance/auto_config',{method:'POST'});
+    const data=await resp.json();
+    if(data.ok){
+      alert(__i('dashboard.auto_config_success', '配置完成，已重启 AstrBot 与 NapCat。\nWS 地址：{ws_url}').replace('{ws_url}', data.ws_url));
+    }else{
+      alert(data.error||__i('dashboard.auto_config_failed', '配置失败'));
+    }
+  }catch(e){
+    alert(__i('dashboard.auto_config_failed', '配置失败')+'：'+e.message);
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML=old;
+  }
+}
+
 // 实例创建
 let _pt=null;
-async function startCreate(service){
-  if(service){
-    // 单服务重建（已有实例）
-    if(!confirm(`确定要重建 ${service==='astrbot'?'AstrBot':'NapCat'} 容器？现有容器将被删除重建，数据目录保留。`))return;
+async function startCreate(botType){
+  if(botType && botType !== 'napcat' && botType !== 'llonebot'){
+    const label2 = botType==='astrbot'?'AstrBot':(botType==='llonebot'?'LLOneBot':'NapCat');
+    if(!confirm(__i('dashboard.confirm_rebuild_container', '确定要重建 {label} 容器？现有容器将被删除重建，数据目录保留。').replace('{label}', label2)))return;
     const box=document.getElementById('singleCreateBox');
     box.classList.remove('d-none');
-    await fetch(`/api/instance/create/${service}`,{method:'POST'});
+    await fetch(`/api/instance/create/${botType}`,{method:'POST'});
     let _st=setInterval(async()=>{
       const d=await(await fetch('/api/instance/progress')).json();
       if(!d.step)return;
       document.getElementById('singleCreateStep').textContent=d.step;
       document.getElementById('singleCreateDetail').textContent=d.detail||'';
-      if(d.done){clearInterval(_st);document.getElementById('singleCreateStep').textContent='✅ 完成，正在刷新...';setTimeout(()=>location.reload(),1500);}
-      if(d.error){clearInterval(_st);document.getElementById('singleCreateStep').innerHTML='❌ 失败：'+d.error;}
+      if(d.done){clearInterval(_st);document.getElementById('singleCreateStep').innerHTML='✅ '+__i('dashboard.create_complete', '创建完成！')+'<br><small style="color:#d29922;"><i class="bi bi-clock me-1"></i>'+__i('dashboard.webui_init_wait', 'WebUI 通常需 30~60 秒初始化，请稍等再访问。')+'</small>';setTimeout(()=>location.reload(),4000);}
+      if(d.error){clearInterval(_st);document.getElementById('singleCreateStep').innerHTML='❌ '+__i('dashboard.create_failed', '创建失败：')+d.error;}
     },1500);
     return;
   }
-  // 全量创建（无实例时）
+  const btLabel = botType==='llonebot'?'LLOneBot':'NapCat';
+  if(!confirm(__i('dashboard.confirm_create_full', '确定创建完整实例（AstrBot + {bt_label}）？').replace('{bt_label}', btLabel)))return;
   document.getElementById('createBtn').disabled=true;
+  document.getElementById('createLlBtn').disabled=true;
   document.getElementById('progressBox').classList.remove('d-none');
-  await fetch('/api/instance/create',{method:'POST'});
+  await fetch('/api/instance/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bot_type:botType})});
   _pt=setInterval(pollProgress,1500);
 }
 
 async function startCreateSingle(service){
-  // 无实例时单独创建某个服务
-  const label = service==='astrbot'?'AstrBot':'NapCat';
-  const btns = ['createBtn','createAstrBtn','createNcBtn'];
+  const labels={astrbot:'AstrBot',napcat:'NapCat',llonebot:'LLOneBot'};
+  const label = labels[service]||service;
+  const btns = ['createBtn','createLlBtn','createAstrBtn','createNcBtn','createLlSingleBtn'];
   btns.forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=true; });
   document.getElementById('progressBox').classList.remove('d-none');
-  document.getElementById('progressStep').textContent=`正在创建 ${label}...`;
+  document.getElementById('progressStep').textContent=__i('dashboard.creating', '正在创建 {label}...').replace('{label}', label);
   await fetch(`/api/instance/create/${service}`,{method:'POST'});
   _pt=setInterval(async()=>{
     const d=await(await fetch('/api/instance/progress')).json();
@@ -526,12 +1032,12 @@ async function startCreateSingle(service){
     document.getElementById('progressDetail').textContent=d.detail||'';
     if(d.done){
       clearInterval(_pt);
-      document.getElementById('progressStep').textContent='✅ 创建完成，正在刷新...';
-      setTimeout(()=>location.reload(),1500);
+      document.getElementById('progressStep').innerHTML='✅ '+__i('dashboard.create_complete', '创建完成！')+'<br><small style="color:#d29922;"><i class="bi bi-clock me-1"></i>'+__i('dashboard.webui_init_wait', 'WebUI 通常需 30~60 秒初始化，请稍等再访问。')+'</small>';
+      setTimeout(()=>location.reload(),4000);
     }
     if(d.error){
       clearInterval(_pt);
-      document.getElementById('progressStep').innerHTML=`❌ 创建失败：${d.error}`;
+      document.getElementById('progressStep').innerHTML='❌ '+__i('dashboard.create_failed', '创建失败：')+d.error;
       btns.forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=false; });
     }
   },1500);
@@ -541,8 +1047,8 @@ async function pollProgress(){
   if(!d.step)return;
   document.getElementById('progressStep').textContent=d.step;
   document.getElementById('progressDetail').textContent=d.detail||'';
-  if(d.done){clearInterval(_pt);document.getElementById('progressStep').textContent='✅ 创建完成，正在刷新...';setTimeout(()=>location.reload(),1500);}
-  if(d.error){clearInterval(_pt);document.getElementById('progressStep').innerHTML='❌ 创建失败：'+d.error;document.getElementById('createBtn').disabled=false;}
+  if(d.done){clearInterval(_pt);document.getElementById('progressStep').innerHTML='✅ '+__i('dashboard.create_complete', '创建完成！')+'<br><small style="color:#d29922;"><i class="bi bi-clock me-1"></i>'+__i('dashboard.webui_init_wait', 'WebUI 通常需 30~60 秒初始化，请稍等再访问。')+'</small>';setTimeout(()=>location.reload(),4000);}
+  if(d.error){clearInterval(_pt);document.getElementById('progressStep').innerHTML='❌ '+__i('dashboard.create_failed', '创建失败：')+d.error;document.getElementById('createBtn').disabled=false;}
 }
 
 // 弹性端口
@@ -550,21 +1056,69 @@ function togglePorts(){
   const p=document.getElementById('portsPanel');
   const c=document.getElementById('portChevron');
   p.classList.toggle('d-none');
-  c.className=p.classList.contains('d-none')?'bi bi-chevron-down text-secondary':'bi bi-chevron-up text-secondary';
+  c.classList.toggle('open');
 }
 const availPorts={{ available_extra_ports | tojson if available_extra_ports else '[]' }};
+const currentBotType='{{ (instance.bot_type if instance else "napcat") or "napcat" }}';
 function addPortRow(){
   const row=document.createElement('div');
   row.className='row g-2 mb-2 align-items-center port-row';
+  row.style.animation='fadeInUp 0.3s ease both';
   const opts=availPorts.map(p=>`<option value="${p}">${p}</option>`).join('');
+  const botOpt = currentBotType==='llonebot' ? '<option value="llonebot">LLOneBot</option>' : '<option value="napcat">NapCat</option>';
   row.innerHTML=`
-    <div class="col-3"><select class="form-select form-select-sm port-service" style="background:#0d1117;border-color:#30363d;color:#e6edf3;"><option value="astrbot">AstrBot</option><option value="napcat">NapCat</option></select></div>
-    <div class="col-3"><input type="number" class="form-control form-control-sm port-container" placeholder="容器端口" style="background:#0d1117;border-color:#30363d;color:#e6edf3;"></div>
-    <div class="col-3"><select class="form-select form-select-sm port-host" style="background:#0d1117;border-color:#30363d;color:#e6edf3;">${opts}</select></div>
-    <div class="col-2"><input type="text" class="form-control form-control-sm port-label" placeholder="备注" style="background:#0d1117;border-color:#30363d;color:#e6edf3;"></div>
+    <div class="col-3"><select class="form-select form-select-sm port-service"><option value="astrbot">AstrBot</option>${botOpt}</select></div>
+    <div class="col-3"><input type="number" class="form-control form-control-sm port-container" placeholder="如 8080"></div>
+    <div class="col-3"><select class="form-select form-select-sm port-host">${opts}</select></div>
+    <div class="col-2"><input type="text" class="form-control form-control-sm port-label" placeholder="备注"></div>
     <div class="col-1"><button class="btn btn-sm btn-outline-danger" onclick="this.closest('.port-row').remove()"><i class="bi bi-trash3"></i></button></div>`;
   document.getElementById('portRows').appendChild(row);
 }
+
+let _portRebuildTimer = null;
+
+const DEFAULT_PORT_INFO = {
+  'astrbot:6199': {name:'AstrBot WS 服务端口 (6199)', affects:__i('dashboard.port_affects', '⚠ {desc} 将变更为新端口').replace('{desc}', 'AstrBot 的反向 WS 连接地址')},
+  'astrbot:6185': {name:'AstrBot WebUI 面板端口 (6185)', affects:__i('dashboard.port_affects', '⚠ {desc} 将变更为新端口').replace('{desc}', 'AstrBot 管理面板的访问地址')},
+  'napcat:6099':  {name:'NapCat WebUI 端口 (6099)', affects:__i('dashboard.port_affects', '⚠ {desc} 将变更为新端口').replace('{desc}', 'NapCat WebUI 的访问地址')},
+  'llonebot:3080':{name:'LLOneBot WebUI 端口 (3080)', affects:__i('dashboard.port_affects', '⚠ {desc} 将变更为新端口').replace('{desc}', 'LLOneBot WebUI 的访问地址')},
+};
+
+function checkDefaultPortOverrides(mappings) {
+  const overrides = [];
+  for (const m of mappings) {
+    const key = `${m.service}:${m.container_port}`;
+    if (DEFAULT_PORT_INFO[key]) {
+      overrides.push({...DEFAULT_PORT_INFO[key], host_port: m.host_port});
+    }
+  }
+  return overrides;
+}
+
+function updateConnectionLinks(mappings) {
+  const publicIp = '{{ public_ip }}';
+  const host = '{{ host }}';
+  let wsPort = {{ effective_astrbot_ws_port }};
+  let astrbotWebPort = {{ effective_astrbot_web_port }};
+  let botWebPort = {{ effective_bot_web_port }};
+  for (const m of mappings) {
+    if (m.service === 'astrbot') {
+      if (m.container_port === 6199) wsPort = m.host_port;
+      else if (m.container_port === 6185) astrbotWebPort = m.host_port;
+    } else if (m.service === 'napcat' && m.container_port === 6099) {
+      botWebPort = m.host_port;
+    } else if (m.service === 'llonebot' && m.container_port === 3080) {
+      botWebPort = m.host_port;
+    }
+  }
+  const wsEl = document.getElementById('wsLinkCode');
+  const abEl = document.getElementById('astrbotWebuiCode');
+  const btEl = document.getElementById('botWebuiCode');
+  if (wsEl) wsEl.textContent = `ws://${publicIp}:${wsPort}/ws`;
+  if (abEl) abEl.textContent = `http://${host}:${astrbotWebPort}`;
+  if (btEl) btEl.textContent = `http://${host}:${botWebPort}`;
+}
+
 async function savePorts(){
   const rows=[...document.querySelectorAll('.port-row')];
   const mappings=rows.map(r=>({
@@ -573,20 +1127,114 @@ async function savePorts(){
     host_port:parseInt(r.querySelector('.port-host').value),
     label:r.querySelector('.port-label').value,
   })).filter(m=>m.container_port>0);
+
+  const overrides = checkDefaultPortOverrides(mappings);
+  if (overrides.length > 0) {
+    let msg = '<p>' + __i('dashboard.default_port_warning', '您正在修改以下默认端口的映射，这将产生以下影响：') + '</p><ul>';
+    for (const o of overrides) {
+      msg += `<li><strong>${o.name}</strong> → 宿主端口 <code>${o.host_port}</code><br><small class="text-warning">${o.affects.replace('{desc}', o.name)}</small></li>`;
+    }
+    msg += '</ul><p class="mb-0"><small class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>' + __i('dashboard.port_conflict_warning', '如果新端口与其他服务冲突，可能导致 Address already in use 错误。') + '</small></p>';
+    document.getElementById('defaultPortConfirmBody').innerHTML = msg;
+
+    const confirmed = await new Promise(resolve => {
+      let resolved = false;
+      const modalEl = document.getElementById('defaultPortConfirmModal');
+      const modal = new bootstrap.Modal(modalEl);
+      const onConfirm = () => { resolved = true; modal.hide(); };
+      const onHidden = () => {
+        document.getElementById('confirmPortOverrideBtn').removeEventListener('click', onConfirm);
+        modalEl.removeEventListener('hidden.bs.modal', onHidden);
+        resolve(resolved);
+      };
+      document.getElementById('confirmPortOverrideBtn').addEventListener('click', onConfirm);
+      modalEl.addEventListener('hidden.bs.modal', onHidden);
+      modal.show();
+    });
+
+    if (!confirmed) return;
+  }
+
   const btn=document.getElementById('savePortsBtn');
-  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>保存中...';
+  const box=document.getElementById('portRebuildBox');
+  const spinner=document.getElementById('portRebuildSpinner');
+  const step=document.getElementById('portRebuildStep');
+  const detail=document.getElementById('portRebuildDetail');
+
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>' + __i('dashboard.saving', '保存中...');
+  box.classList.remove('d-none');
+  spinner.classList.remove('d-none');
+  step.textContent=__i('dashboard.saving', '正在保存配置...');
+  detail.textContent='';
+
   const resp=await fetch('/api/instance/extra_ports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mappings})});
   const d=await resp.json();
-  const msg=document.getElementById('portsMsg');
-  msg.classList.remove('d-none');
-  if(d.ok){msg.innerHTML='<span class="text-success">✅ 已保存，容器正在重建中...</span>';}
-  else{msg.innerHTML='<span class="text-danger">❌ '+d.error+'</span>';btn.disabled=false;btn.innerHTML='<i class="bi bi-floppy me-1"></i>保存并重建容器';}
+
+  if(!d.ok){
+    step.innerHTML='<span class="text-danger">❌ '+__i('dashboard.save_failed', '保存失败：')+(d.error||__i('common.unknown_error', '未知错误'))+'</span>';
+    spinner.classList.add('d-none');
+    btn.disabled=false;
+    btn.innerHTML='<i class="bi bi-floppy me-1"></i>' + __i('dashboard.save_rebuild_btn', '保存并重建容器');
+    showToast(d.error || __i('toast.save_failed', '保存失败'), 'error');
+    return;
+  }
+
+  updateConnectionLinks(mappings);
+
+  if(!d.rebuilt){
+    spinner.classList.add('d-none');
+    step.innerHTML='<span class="text-success">✅ '+d.message+'</span>';
+    btn.disabled=false;
+    btn.innerHTML='<i class="bi bi-floppy me-1"></i>' + __i('dashboard.save_rebuild_btn', '保存并重建容器');
+    showToast(d.message || __i('dashboard.port_save_success', '配置已保存'), 'success');
+    return;
+  }
+
+  const affectedStr=(d.affected||[]).map(s=>s==='astrbot'?'AstrBot':s==='llonebot'?'LLOneBot':'NapCat').join(' + ');
+  btn.innerHTML=`<i class="bi bi-hourglass-split me-1"></i>` + __i('dashboard.rebuilding', '重建 {services} 中...').replace('{services}', affectedStr);
+  step.textContent=__i('dashboard.port_save_success', '配置已保存') + '，' + __i('dashboard.rebuilding', '重建 {services} 中...').replace('{services}', affectedStr);
+
+  if(_portRebuildTimer) clearInterval(_portRebuildTimer);
+  _portRebuildTimer = setInterval(async()=>{
+    try{
+      const p=await(await fetch('/api/instance/update_progress')).json();
+      if(!p.step) return;
+      step.textContent=p.step;
+      detail.textContent=p.detail||'';
+      if(p.done){
+        clearInterval(_portRebuildTimer);
+        spinner.classList.add('d-none');
+        step.innerHTML='✅ '+__i('dashboard.rebuild_complete', '重建完成！')+'<br><small style="color:#d29922;"><i class="bi bi-clock me-1"></i>'+__i('dashboard.webui_init_wait', 'WebUI 通常需 30~60 秒初始化，请稍等再访问。')+'</small>';
+        showToast(__i('dashboard.port_save_success', '配置已保存'), 'success');
+        if (overrides.length > 0) {
+          showToast(__i('toast.save_success', '默认端口映射已变更'), 'warning', 6000);
+        }
+        setTimeout(()=>location.reload(), 4000);
+      }
+      if(p.error){
+        clearInterval(_portRebuildTimer);
+        spinner.classList.add('d-none');
+        step.innerHTML='<span class="text-danger">❌ '+__i('dashboard.rebuild_failed', '重建失败：')+p.error+'</span>';
+        btn.disabled=false;
+        btn.innerHTML='<i class="bi bi-floppy me-1"></i>'+__i('dashboard.save_rebuild_btn', '保存并重建容器');
+        showToast(p.error, 'error');
+      }
+    }catch(e){}
+  }, 1200);
 }
 
 // 镜像更新
 let _ut=null;
-async function startUpdate(target){
-  if(!confirm('将拉取最新镜像并重建容器（数据不会丢失），确定继续？'))return;
+function switchBotType(target){
+  const targetLabel = target==='llonebot'?'LLOneBot':'NapCat';
+  const currentLabel = target==='llonebot'?'NapCat':'LLOneBot';
+  const msg = __i('dashboard.switch_bot_type_warning', '切换至 {target}\n\n请注意以下影响：\n\n• 当前运行的 {current} 容器将被停止并删除\n• 将拉取 {target} 最新镜像并创建新容器\n• {current} 的数据目录会保留在服务器上，不会丢失\n• {target} 的登录和配置需要重新进行（QQ 扫码等）\n• AstrBot 不受影响，继续正常运行\n\n确定要切换吗？').replace('{target}', targetLabel).replace(/{current}/g, currentLabel);
+  if(!confirm(msg))return;
+  startUpdate(target, true);
+}
+async function startUpdate(target, skipConfirm=false){
+  if(!skipConfirm && !confirm(__i('dashboard.confirm_update', '将拉取最新镜像并重建容器（数据不会丢失），确定继续？')))return;
   document.getElementById('updateProgressBox').classList.remove('d-none');
   document.getElementById('updateSpinner').classList.remove('d-none');
   let url='/api/instance/update',progressUrl='/api/instance/update_progress';
@@ -598,9 +1246,10 @@ async function startUpdate(target){
     if(!p.step)return;
     document.getElementById('updateStep').textContent=p.step;
     document.getElementById('updateDetail').textContent=p.detail||'';
-    if(p.done){clearInterval(_ut);document.getElementById('updateSpinner').classList.add('d-none');document.getElementById('updateStep').textContent='✅ 更新完成，正在刷新...';setTimeout(()=>location.reload(),2000);}
-    if(p.error){clearInterval(_ut);document.getElementById('updateSpinner').classList.add('d-none');document.getElementById('updateStep').innerHTML='❌ '+p.error;}
+    if(p.done){clearInterval(_ut);document.getElementById('updateSpinner').classList.add('d-none');document.getElementById('updateStep').innerHTML='✅ '+__i('dashboard.update_complete', '更新完成！')+'<br><small style="color:#d29922;"><i class="bi bi-clock me-1"></i>'+__i('dashboard.container_started_wait', '容器已启动，WebUI 服务通常需要 30~60 秒初始化，若无法访问请稍等片刻再试。')+'</small>';showToast(__i('dashboard.update_complete', '镜像更新完成'), 'success');setTimeout(()=>location.reload(),4000);}
+    if(p.error){clearInterval(_ut);document.getElementById('updateSpinner').classList.add('d-none');document.getElementById('updateStep').innerHTML='❌ '+p.error;showToast(p.error, 'error');}
   },1500);
 }
 </script>
 {% endblock %}
+

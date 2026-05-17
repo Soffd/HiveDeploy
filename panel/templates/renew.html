@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title_i18n %}renew.title{% endblock %}{% block title %}自助续期 — HiveDeploy{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-semibold"><i class="bi bi-clock-history me-2"></i><span data-i18n="renew.page_title">自助续期</span></h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;" data-i18n="renew.page_desc">查看收款信息，选择续期时长</p>
+  </div>
+</div>
+
+{% if not cfg.renewal_enabled %}
+<div class="alert alert-warning py-3" style="font-size:.9rem;">
+  <i class="bi bi-exclamation-triangle me-2"></i>
+  <strong data-i18n="renew.renewal_closed">自助续期功能暂未开放</strong><span data-i18n="renew.renewal_closed_hint">，如需续期请联系管理员。</span>
+</div>
+{% else %}
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+        <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(88,166,255,0.08); color:#58a6ff; border-color:rgba(88,166,255,0.2);">
+          <i class="bi bi-calendar3"></i>
+        </div>
+        <small class="fw-semibold text-secondary" data-i18n="renew.account_status">账号状态</small>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <span class="text-secondary" style="font-size:.8rem;" data-i18n="renew.current_expiry">当前到期时间</span>
+            <div class="fw-semibold mt-1" style="font-size:1.05rem;">
+              {% if user.expire_at %}
+                {{ user.expire_at.strftime('%Y-%m-%d %H:%M') }}
+                {% set delta = (user.expire_at - now).days if user.expire_at > now else -1 %}
+                {% if delta < 0 %}
+                  <span class="badge bg-danger ms-2" data-i18n="renew.expired_badge">已到期</span>
+                {% elif delta <= 7 %}
+                  <span class="badge bg-warning text-dark ms-2" data-i18n="renew.days_remaining" data-i18n-params='{"days":"{{ delta }}"}'>剩余 {{ delta }} 天</span>
+                {% else %}
+                  <span class="badge bg-success ms-2" data-i18n="renew.days_remaining" data-i18n-params='{"days":"{{ delta }}"}'>剩余 {{ delta }} 天</span>
+                {% endif %}
+              {% else %}
+                <span class="text-secondary" data-i18n="renew.permanent_account">永久有效</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <span class="text-secondary" style="font-size:.8rem;" data-i18n="renew.username_label">用户名</span>
+            <div class="fw-semibold mt-1" style="font-size:1.05rem;">{{ user.username }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if user.expire_at is none %}
+    <div class="card mb-4">
+      <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+        <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(63,185,80,0.08); color:var(--green); border-color:rgba(63,185,80,0.2);">
+          <i class="bi bi-check-circle"></i>
+        </div>
+        <small class="fw-semibold text-secondary" data-i18n="renew.renewal_hint">续期提示</small>
+      </div>
+      <div class="card-body">
+        <div class="p-3 rounded" style="background:rgba(63,185,80,0.06); border:1px solid rgba(63,185,80,0.2);">
+          <p class="mb-0" style="font-size:.9rem; color:var(--green);">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <strong data-i18n="renew.permanent_no_renew">您的账号为永久有效，无需续期。</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="card mb-4">
+      <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+        <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(63,185,80,0.08); color:var(--green); border-color:rgba(63,185,80,0.2);">
+          <i class="bi bi-plus-circle"></i>
+        </div>
+        <small class="fw-semibold text-secondary" data-i18n="renew.select_duration">选择续期时长</small>
+      </div>
+      <div class="card-body">
+        {% if cfg.price_text %}
+        <div class="badge-price p-3 mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <span class="price-icon"><i class="bi bi-tag"></i></span>
+            <div>
+              <span style="font-size:.75rem; color:var(--text-secondary);" data-i18n="renew.price_label">价格说明</span>
+              <div style="font-weight:600; color:#58a6ff; font-size:.95rem;">{{ cfg.price_text }}</div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="p-3 mb-3 rounded" style="background:rgba(210,153,34,0.06); border:1px solid rgba(210,153,34,0.2);">
+          <p class="mb-0" style="font-size:.82rem; color:var(--amber);">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            <strong data-i18n="renew.important_notice">重要提醒：</strong><span data-i18n="renew.payment_warning">请先完成支付再操作续期。系统<u>不会验证</u>是否付款，续期操作完全由您自行负责。</span>
+          </p>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="renew.renew_days_label">续期时长（1~29 天或 1 个月）</label>
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            <input type="number" id="renewDays" class="form-control days-input-animated" min="1" max="30" value="30"
+                   style="width:100px; background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); font-size:1.2rem; border-radius:var(--radius-sm);">
+            <span class="text-secondary" data-i18n="renew.days_unit">天</span>
+            <div class="d-flex gap-1 ms-2 flex-wrap">
+              <button type="button" class="btn btn-sm btn-outline-secondary btn-action chip-btn" onclick="setDays(7)"><span data-i18n="renew.days_7">7天</span></button>
+              <button type="button" class="btn btn-sm btn-outline-secondary btn-action chip-btn" onclick="setDays(15)"><span data-i18n="renew.days_15">15天</span></button>
+              <button type="button" class="btn btn-sm btn-outline-info btn-action chip-btn-active" id="chip30" onclick="setDays(30)"><span data-i18n="renew.days_30">1个月（满月）</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div id="previewBox" class="mb-3 p-3 rounded preview-pulse" style="background:var(--bg-input); border:1px solid var(--border-default); display:none;">
+          <span class="text-secondary" style="font-size:.8rem;" data-i18n="renew.preview_expiry">续期后预计到期时间：</span>
+          <span id="previewDate" class="fw-semibold" style="color:#58a6ff; font-size:1rem;"></span>
+        </div>
+
+        <button class="btn btn-success btn-lg px-4 btn-action btn-ripple" id="renewBtn" onclick="submitRenew()">
+          <i class="bi bi-check-circle me-1"></i><span data-i18n="renew.confirm_renew_btn">确认续期</span>
+        </button>
+        <span id="renewMsg" class="ms-3" style="font-size:.875rem;"></span>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if cfg.instructions %}
+    <div class="card mb-4">
+      <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+        <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(163,113,247,0.08); color:var(--purple); border-color:rgba(163,113,247,0.2);">
+          <i class="bi bi-file-text"></i>
+        </div>
+        <small class="fw-semibold text-secondary" data-i18n="renew.instructions_title">续期说明</small>
+      </div>
+      <div class="card-body">
+        <div style="font-size:.875rem; color:#adbac7; white-space:pre-wrap; line-height:1.7;">
+          {{ cfg.instructions }}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card mb-4 gradient-border-card">
+      <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+        <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(63,185,80,0.08); color:var(--green); border-color:rgba(63,185,80,0.2);">
+          <i class="bi bi-qr-code-scan"></i>
+        </div>
+        <small class="fw-semibold text-secondary" data-i18n="renew.payment_title">扫码支付</small>
+      </div>
+      <div class="card-body">
+        {% if cfg.wechat_qr or cfg.alipay_qr %}
+        <div class="row g-3">
+          {% if cfg.wechat_qr %}
+          <div class="{% if cfg.alipay_qr %}col-6{% else %}col-12{% endif %} text-center fade-in-up">
+            <div class="p-2 rounded qr-wrapper" style="background:var(--bg-input); border:1px solid var(--border-default);">
+              <img src="/uploads/{{ cfg.wechat_qr }}" class="img-fluid mb-2 qr-img" style="max-height:220px; border-radius:8px;">
+              <div style="font-size:.85rem; color:#3fb950; font-weight:600;">
+                <i class="bi bi-wechat me-1"></i><span data-i18n="renew.wechat_pay">微信支付</span>
+              </div>
+              <p class="text-secondary mt-1 mb-0" style="font-size:.72rem;" data-i18n="renew.open_wechat">打开微信扫一扫</p>
+            </div>
+          </div>
+          {% endif %}
+          {% if cfg.alipay_qr %}
+          <div class="{% if cfg.wechat_qr %}col-6{% else %}col-12{% endif %} text-center fade-in-up" style="animation-delay:0.15s;">
+            <div class="p-2 rounded qr-wrapper" style="background:var(--bg-input); border:1px solid var(--border-default);">
+              <img src="/uploads/{{ cfg.alipay_qr }}" class="img-fluid mb-2 qr-img" style="max-height:220px; border-radius:8px;">
+              <div style="font-size:.85rem; color:#1677ff; font-weight:600;">
+                <i class="bi bi-alipay"></i> <span data-i18n="renew.alipay_pay">支付宝</span>
+              </div>
+              <p class="text-secondary mt-1 mb-0" style="font-size:.72rem;" data-i18n="renew.open_alipay">打开支付宝扫一扫</p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="empty-state-card">
+          <span class="empty-state-icon">
+            <i class="bi bi-qr-code"></i>
+          </span>
+          <p class="text-secondary mb-2" data-i18n="renew.no_qr_uploaded">暂未上传收款码</p>
+          <p class="text-muted" style="font-size:.8rem;" data-i18n="renew.no_qr_hint">请联系管理员添加收款二维码</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if cfg.social_qq or cfg.social_wechat or cfg.social_telegram or cfg.social_discord %}
+    <div class="card">
+      <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+        <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(88,166,255,0.08); color:#58a6ff; border-color:rgba(88,166,255,0.2);">
+          <i class="bi bi-people"></i>
+        </div>
+        <small class="fw-semibold text-secondary" data-i18n="renew.social_title">联系 & 售后</small>
+      </div>
+      <div class="card-body">
+        <div class="d-flex flex-column gap-2">
+          {% if cfg.social_qq %}
+          <a href="{{ cfg.social_qq }}" target="_blank" class="btn btn-sm btn-outline-secondary text-start btn-action social-link"
+             style="border-color:var(--border-default);">
+            <i class="bi bi-tencent-qq me-2"></i>{{ cfg.social_qq }}
+          </a>
+          {% endif %}
+          {% if cfg.social_wechat %}
+          <span class="btn btn-sm btn-outline-secondary text-start social-link" style="border-color:var(--border-default); cursor:default;">
+            <i class="bi bi-wechat me-2"></i>{{ cfg.social_wechat }}
+          </span>
+          {% endif %}
+          {% if cfg.social_telegram %}
+          <a href="{{ cfg.social_telegram }}" target="_blank" class="btn btn-sm btn-outline-secondary text-start btn-action social-link"
+             style="border-color:var(--border-default);">
+            <i class="bi bi-telegram me-2"></i>{{ cfg.social_telegram }}
+          </a>
+          {% endif %}
+          {% if cfg.social_discord %}
+          <a href="{{ cfg.social_discord }}" target="_blank" class="btn btn-sm btn-outline-secondary text-start btn-action social-link"
+             style="border-color:var(--border-default);">
+            <i class="bi bi-discord me-2"></i>{{ cfg.social_discord }}
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function __i(key, fallback) {
+  if (window.__i18n) return window.__i18n(key, fallback);
+  return fallback;
+}
+
+const daysInput = document.getElementById('renewDays');
+const previewBox = document.getElementById('previewBox');
+const previewDate = document.getElementById('previewDate');
+const chip30 = document.getElementById('chip30');
+
+function updatePreview() {
+  const days = parseInt(daysInput.value) || 0;
+  if (days < 1 || days > 30) {
+    previewBox.style.display = 'none';
+    return;
+  }
+  const d = new Date();
+  {% if user.expire_at and user.expire_at > now %}
+  d.setTime({{ (user.expire_at.timestamp() * 1000) | int }});
+  {% else %}
+  {% endif %}
+  addRenewDuration(d, days);
+  previewBox.style.display = 'block';
+  previewDate.textContent = d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0') + ' ' +
+    String(d.getHours()).padStart(2,'0') + ':' +
+    String(d.getMinutes()).padStart(2,'0');
+}
+
+function addRenewDuration(date, days) {
+  if (days === 30) {
+    const originalDay = date.getDate();
+    const targetMonth = date.getMonth() + 1;
+    date.setDate(1);
+    date.setMonth(targetMonth);
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    date.setDate(Math.min(originalDay, lastDay));
+    return;
+  }
+  date.setDate(date.getDate() + days);
+}
+
+daysInput.addEventListener('input', updatePreview);
+updatePreview();
+
+function setDays(n) {
+  daysInput.value = n;
+  updatePreview();
+  document.querySelectorAll('.chip-btn, .chip-btn-active').forEach(b => {
+    b.classList.remove('chip-btn-active');
+    b.classList.add('chip-btn');
+  });
+  const activeChip = document.getElementById('chip' + n);
+  if (activeChip) {
+    activeChip.classList.remove('chip-btn');
+    activeChip.classList.add('chip-btn-active');
+  }
+}
+
+async function submitRenew() {
+  const days = parseInt(daysInput.value) || 0;
+  if (days < 1 || days > 30) {
+    document.getElementById('renewMsg').innerHTML =
+      '<span class="text-danger">' + __i('renew.invalid_days', '请输入 1~30 天的续期天数') + '</span>';
+    return;
+  }
+  const durationLabel = days === 30 ? __i('renew.duration_month', '1个月') : __i('renew.duration_days', '{days} 天').replace('{days}', days);
+  if (!confirm(__i('renew.confirm_renew_msg', '确认续期 {duration}？\n\n请确保您已完成支付。系统不验证支付状态，续期操作由您自行负责。\n\n续期后如之前已到期，容器将自动恢复运行。').replace('{days}', days).replace('{duration}', durationLabel))) return;
+
+  const btn = document.getElementById('renewBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>' + __i('renew.processing', '处理中...');
+  document.getElementById('renewMsg').innerHTML = '';
+
+  try {
+    const r = await fetch('/api/renew', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({days}),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      document.getElementById('renewMsg').innerHTML =
+        '<span class="text-success">' + __i('renew.renew_success', '续期成功！新的到期时间：{expire}（+{duration}）').replace('{expire}', d.new_expire_at).replace('{days}', d.days_added).replace('{duration}', durationLabel) + '</span>';
+      btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + __i('renew.renew_success_btn', '续期成功');
+      btn.classList.remove('btn-success');
+      btn.classList.add('btn-outline-success');
+      setTimeout(() => location.reload(), 3000);
+    } else {
+      document.getElementById('renewMsg').innerHTML =
+        '<span class="text-danger">' + (d.error || __i('renew.operation_failed', '操作失败')) + '</span>';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + __i('renew.confirm_renew_btn', '确认续期');
+    }
+  } catch(e) {
+    document.getElementById('renewMsg').innerHTML =
+      '<span class="text-danger">' + __i('renew.network_error', '网络错误，请重试') + '</span>';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + __i('renew.confirm_renew_btn', '确认续期');
+  }
+}
+</script>
+{% endblock %}

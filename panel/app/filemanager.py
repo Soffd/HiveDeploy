@@ -27,8 +27,20 @@ SERVICE_CONFIG = {
             "🏠 QQ数据":     "/root/.config/QQ",
             "🌐 根目录":     "/",
         }
+    },
+    "llonebot": {
+        "root": "/root/.config/QQ",
+        "shortcuts": {
+            "⚙️ LLOneBot配置": "/root/.config/QQ/config",
+            "🏠 QQ数据":     "/root/.config/QQ",
+            "📁 LLOneBot数据": "/root/.config/QQ",
+            "🌐 根目录":     "/",
+        }
     }
 }
+
+def get_terminal_root(service: str) -> str:
+    return SERVICE_CONFIG.get(service, {}).get("root", "/")
 
 TEXT_EXTS = {
     ".txt", ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg",
@@ -55,7 +67,7 @@ def _exec(username: str, service: str, cmd: str) -> tuple:
 
 def list_dir(username: str, service: str, path: str) -> Dict:
     stdout, rc = _exec(username, service,
-        f'sh -c \'ls -lA --time-style=+ "{path}" 2>&1\'')
+        f'sh -c \'ls -lA --time-style=+%s "{path}" 2>&1\'')
     if rc != 0:
         return {"entries": [], "error": stdout}
 
@@ -74,12 +86,16 @@ def list_dir(username: str, service: str, path: str) -> Dict:
         if " -> " in name:
             name = name.split(" -> ")[0].strip()
         size    = parts[4] if len(parts) > 4 else "0"
+        mtime_str = parts[5] if len(parts) > 5 else "0"
+        try: mtime = int(mtime_str)
+        except: mtime = 0
         is_dir  = perms.startswith("d") or perms.startswith("l")
         full    = (path.rstrip("/") + "/" + name).replace("//", "/")
         entries.append({
             "name":     name,
             "is_dir":   is_dir,
             "size":     size,
+            "mtime":    mtime,
             "perms":    perms,
             "full_path": full,
         })
@@ -243,14 +259,45 @@ def compress_path(username: str, service: str, src: str, dest_zip: str) -> Dict:
 
 
 def get_file_info(username: str, service: str, path: str) -> Dict:
+    """获取文件/文件夹的详细属性信息"""
     out, rc = _exec(username, service,
-        f'sh -c \'stat -c "%s %F %Y" "{path}" 2>&1\'')
+        f'sh -c \'stat -c "SIZE=%s\nMTIME=%Y\nCTIME=%W\nPERMS=%a\nPERMS_HR=%A\nOWNER=%U\nGROUP=%G" "{path}" 2>&1\'')
     if rc != 0:
         return {"error": out}
-    parts = out.strip().split(None, 2)
-    return {
-        "size": int(parts[0]) if parts else 0,
-        "type": parts[1] if len(parts) > 1 else "",
-        "mtime": parts[2] if len(parts) > 2 else "",
-        "error": "",
-    }
+
+    info = {"error": ""}
+    for line in out.strip().splitlines():
+        line = line.strip()
+        if "=" in line:
+            k, v = line.split("=", 1)
+            info[k.lower()] = v.strip()
+
+    # 确定文件类型
+    type_out, _ = _exec(username, service,
+        f'sh -c \'[ -f "{path}" ] && echo file || ([ -d "{path}" ] && echo dir || ([ -L "{path}" ] && echo link || echo unknown))\'')
+    info["type"] = type_out.strip()
+
+    # 对于目录，统计文件数
+    if info["type"] == "dir":
+        count_out, _ = _exec(username, service,
+            f'sh -c \'ls -A "{path}" 2>/dev/null | wc -l\'')
+        info["file_count"] = count_out.strip()
+
+    # 解析并规范化数值字段
+    try:
+        info["size"] = int(info.get("size", "0"))
+    except (ValueError, TypeError):
+        info["size"] = 0
+
+    for field in ("mtime", "ctime"):
+        try:
+            info[field] = int(info.get(field, "0"))
+        except (ValueError, TypeError):
+            info[field] = 0
+
+    # 补充分隔后的权限表示（如 -rwxr-xr-x）
+    info["perms_hr"] = info.get("perms_hr", "")
+    info["owner"] = info.get("owner", "")
+    info["group"] = info.get("group", "")
+
+    return info

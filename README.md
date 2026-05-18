@@ -233,6 +233,15 @@ A: NapCat 和 LLOneBot 互斥部署，切换时旧容器会自动清除。在创
 
 ---
 
+## 💝 赞助支持
+
+如果这个项目对你有帮助，欢迎请开发者喝杯咖啡 ☕
+
+-   **Patreon** — [patreon.com/cw/YukiSoffd](https://www.patreon.com/cw/YukiSoffd)
+-   **爱发电** — [ifdian.net/a/HiveDeploy](https://www.ifdian.net/a/HiveDeploy)
+
+---
+
 ## 📂 项目结构
 
 ```

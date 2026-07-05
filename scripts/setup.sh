@@ -11,7 +11,7 @@ error() { echo -e "${RED}[ERR]${NC}  $*"; exit 1; }
 
 echo -e "${BOLD}"
 echo "  ╔══════════════════════════════════════╗"
-echo "  ║      Bot Platform 部署向导           ║"
+echo "  ║      HiveDeploy 部署向导           ║"
 echo "  ╚══════════════════════════════════════╝"
 echo -e "${NC}"
 

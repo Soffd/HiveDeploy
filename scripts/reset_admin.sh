@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bot Platform — 管理员密码重置脚本
+# HiveDeploy — 管理员密码重置脚本
 # 用法: bash scripts/reset_admin.sh
 
 set -e

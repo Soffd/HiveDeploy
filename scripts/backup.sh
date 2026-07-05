@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bot Platform — 实例数据备份脚本
+# HiveDeploy — 实例数据备份脚本
 # 用法: bash scripts/backup.sh [username]  （不填则备份所有）
 
 set -e

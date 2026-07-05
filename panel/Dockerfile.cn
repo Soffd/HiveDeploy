@@ -1,0 +1,39 @@
+# ============================================================
+# HiveDeploy Panel - 国内优化版 Dockerfile
+# ============================================================
+# 阿里云 apt 源 + 多 pip 镜像自动测速安装
+# 配合 docker-compose.simple.yml 使用
+# ============================================================
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 0. 替换 apt 源为阿里云镜像（最先执行，避免官方源卡住）
+RUN sed -i 's|http://deb.debian.org|http://mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources \
+    && sed -i 's|http://security.debian.org|http://mirrors.aliyun.com/debian-security|g' /etc/apt/sources.list.d/debian.sources
+
+# 1. 安装 curl + tzdata
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. 复制依赖文件 + 多源测速安装脚本
+COPY requirements.txt install_pip.sh ./
+
+# 3. pip 多源测速 → 按速度排序 → 逐个尝试安装
+RUN chmod +x install_pip.sh \
+    && bash install_pip.sh
+
+# 4. 复制应用代码
+COPY app/ ./app/
+COPY templates/ ./templates/
+
+RUN mkdir -p /app/static
+COPY static/ ./static/
+
+RUN mkdir -p /app/db
+
+EXPOSE 3000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3000", "--reload"]

@@ -6,3 +6,4 @@ bcrypt
 docker
 python-multipart
 psutil
+tzdata

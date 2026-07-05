@@ -11,17 +11,47 @@ from sqlalchemy.orm import Session
 
 from .bootstrap import templates, HOST
 from .database import get_db
-from .models import User, Instance, PaymentConfig, RenewalRecord
+from .models import User, Instance, PaymentConfig, RenewalRecord, SiteConfig, UserMessage
 from .auth import get_current_user_from_cookie, verify_password, get_password_hash
 from .docker_manager import (
     get_instance_status, calc_extra_ports, detect_public_ip,
-    start_user_instance,
+    start_user_instance, reset_astrbot_dashboard_password,
 )
 from .models import VerificationCode
 from .email_service import send_renewal_notification
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _is_vip_user(user: User) -> bool:
+    if user.is_admin:
+        return True
+    return bool(user.vip_expire_at and user.vip_expire_at >= datetime.now())
+
+
+def _site_bool(db: Session, key: str, default: bool = False) -> bool:
+    cfg = db.query(SiteConfig).filter_by(key=key).first()
+    if not cfg:
+        return default
+    return str(cfg.value).lower() in ("1", "true", "on", "yes")
+
+
+def _tool_access(db: Session, key: str, default: str = "limited") -> str:
+    cfg = db.query(SiteConfig).filter_by(key=key).first()
+    value = (cfg.value if cfg else default or "limited").strip().lower()
+    if value not in ("free", "limited", "vip"):
+        value = default
+    return value
+
+
+def _site_value(db: Session, key: str, default: str = "") -> str:
+    cfg = db.query(SiteConfig).filter_by(key=key).first()
+    return cfg.value if cfg and cfg.value is not None else default
+
+
+def _tool_allowed(access: str, user: User) -> bool:
+    return access != "vip" or _is_vip_user(user)
 
 
 def add_calendar_month(dt: datetime) -> datetime:
@@ -81,6 +111,82 @@ async def dashboard(request: Request, user: User = Depends(get_current_user_from
         "effective_astrbot_web_port": effective_astrbot_web_port,
         "effective_bot_web_port": effective_bot_web_port,
     })
+
+
+@router.get("/tools", response_class=HTMLResponse)
+async def quick_tools(request: Request,
+                      user: User = Depends(get_current_user_from_cookie),
+                      db: Session = Depends(get_db)):
+    instance = db.query(Instance).filter_by(user_id=user.id).first()
+    container_status = get_instance_status(user.username) if instance else {}
+    reset_access = _tool_access(db, "quick_tool_reset_astrbot_password_access", "limited")
+    if _site_bool(db, "quick_tool_reset_astrbot_password_vip_only", False):
+        reset_access = "vip"
+    auto_config_access = _tool_access(db, "quick_tool_auto_config_access", "limited")
+    return templates.TemplateResponse(request, "tools.html", {
+        "user": user,
+        "instance": instance,
+        "container_status": container_status,
+        "reset_astrbot_password_access": reset_access,
+        "auto_config_access": auto_config_access,
+        "reset_astrbot_password_badge": _site_value(db, "quick_tool_reset_astrbot_password_badge", ""),
+        "auto_config_badge": _site_value(db, "quick_tool_auto_config_badge", "Beta"),
+        "reset_astrbot_password_allowed": _tool_allowed(reset_access, user),
+        "auto_config_allowed": _tool_allowed(auto_config_access, user),
+        "user_is_vip": _is_vip_user(user),
+    })
+
+
+@router.post("/api/tools/reset-astrbot-password")
+async def reset_astrbot_password_tool(user: User = Depends(get_current_user_from_cookie),
+                                      db: Session = Depends(get_db)):
+    access = _tool_access(db, "quick_tool_reset_astrbot_password_access", "limited")
+    if _site_bool(db, "quick_tool_reset_astrbot_password_vip_only", False):
+        access = "vip"
+    if not _tool_allowed(access, user):
+        return JSONResponse({"ok": False, "error": "该快捷工具仅限 VIP 用户使用"}, status_code=403)
+    instance = db.query(Instance).filter_by(user_id=user.id).first()
+    if not instance:
+        return JSONResponse({"ok": False, "error": "实例不存在"})
+    return JSONResponse(reset_astrbot_dashboard_password(user.username))
+
+
+# ════════════════════════════════════════════════════════════
+#  站内信
+# ════════════════════════════════════════════════════════════
+@router.get("/api/messages")
+async def user_messages(user: User = Depends(get_current_user_from_cookie),
+                        db: Session = Depends(get_db)):
+    messages = db.query(UserMessage).filter_by(user_id=user.id).order_by(
+        UserMessage.created_at.desc(),
+        UserMessage.id.desc(),
+    ).limit(50).all()
+    unread = db.query(UserMessage).filter_by(user_id=user.id, read_at=None).count()
+    return JSONResponse({
+        "unread": unread,
+        "messages": [{
+            "id": msg.id,
+            "title": msg.title,
+            "content": msg.content,
+            "type": msg.type,
+            "email_sent": bool(msg.email_sent),
+            "read": msg.read_at is not None,
+            "created_at": msg.created_at.strftime("%Y-%m-%d %H:%M") if msg.created_at else "",
+        } for msg in messages],
+    })
+
+
+@router.post("/api/messages/{message_id}/read")
+async def read_user_message(message_id: int,
+                            user: User = Depends(get_current_user_from_cookie),
+                            db: Session = Depends(get_db)):
+    msg = db.query(UserMessage).filter_by(id=message_id, user_id=user.id).first()
+    if not msg:
+        raise HTTPException(404)
+    if msg.read_at is None:
+        msg.read_at = datetime.now()
+        db.commit()
+    return JSONResponse({"ok": True})
 
 
 # ════════════════════════════════════════════════════════════

@@ -4,11 +4,13 @@ import json
 import logging
 import glob
 import io
+import re
 import secrets
 import tarfile
 import threading
 import time
 import urllib.request
+from urllib.parse import urlparse
 from typing import Dict, Any, List, Optional, Callable
 
 logger = logging.getLogger(__name__)
@@ -19,12 +21,88 @@ ASTRBOT_IMAGE   = "soulter/astrbot:latest"
 NAPCAT_IMAGE    = "mlikiowa/napcat-docker:latest"
 LLONEBOT_IMAGE  = "initialencounter/llonebot:latest"
 PORT_BASE     = int(os.environ.get("INSTANCE_PORT_BASE", "20000"))
-PANEL_HOST    = os.environ.get("PLATFORM_HOST", "localhost")
+def _clean_platform_host(value: str) -> str:
+    raw = (value or "localhost").strip().lstrip("\ufeff")
+    raw = raw.replace("\ufffd", "").replace("ï¿½", "").replace("�", "")
+    parsed = urlparse(raw if "://" in raw else f"//{raw}")
+    host = parsed.hostname or raw.split("/")[0]
+    host = host.strip().strip("[]")
+    numbers = re.findall(r"\d{1,3}", host)
+    if len(numbers) == 4 and not re.search(r"[A-Za-z]", host):
+        octets = [int(n) for n in numbers]
+        if all(0 <= n <= 255 for n in octets):
+            return ".".join(str(n) for n in octets)
+    host = re.sub(r"[^A-Za-z0-9.\-:]", "", host)
+    return host or "localhost"
+
+
+PANEL_HOST    = _clean_platform_host(os.environ.get("PLATFORM_HOST", "localhost"))
 _TZ_ENV = {"TZ": "Asia/Shanghai"}
 _TZ_VOL = {"/etc/localtime": {"bind": "/etc/localtime", "mode": "ro"}}
 
 def _astrbot_env() -> dict:
     return {"ASTRBOT_PORT": "6185", "QUART_TRUSTED_HOSTS": "localhost,127.0.0.1"}
+
+
+def _normalize_memory_mb(value, default: int = 0) -> int:
+    try:
+        mb = int(value)
+    except (TypeError, ValueError):
+        mb = default
+    return max(0, min(mb, 262144))
+
+
+def _container_memory_limits(user_id: int) -> Dict[str, int]:
+    defaults = {"astrbot": 1024, "napcat": 500, "llonebot": 500}
+    db = None
+    try:
+        from .database import SessionLocal
+        from .models import SiteConfig, User
+        db = SessionLocal()
+        astrbot_cfg = db.query(SiteConfig).filter_by(key="default_astrbot_memory_mb").first()
+        bot_cfg = db.query(SiteConfig).filter_by(key="default_bot_memory_mb").first()
+        astrbot_default = _normalize_memory_mb(astrbot_cfg.value if astrbot_cfg else None, 1024)
+        bot_default = _normalize_memory_mb(bot_cfg.value if bot_cfg else None, 500)
+        user = db.query(User).filter_by(id=user_id).first()
+        astrbot_limit = _normalize_memory_mb(getattr(user, "astrbot_memory_limit_mb", None), astrbot_default)
+        bot_limit = _normalize_memory_mb(getattr(user, "bot_memory_limit_mb", None), bot_default)
+        return {"astrbot": astrbot_limit, "napcat": bot_limit, "llonebot": bot_limit}
+    except Exception as e:
+        logger.warning(f"读取容器内存限制失败，使用默认值: {e}")
+        return defaults
+    finally:
+        if db:
+            db.close()
+
+
+def _container_resource_kwargs(user_id: int, service: str) -> Dict[str, str]:
+    mb = _container_memory_limits(user_id).get(service, 0)
+    return {"mem_limit": f"{mb}m"} if mb > 0 else {}
+
+
+def update_user_memory_limits(username: str, user_id: int) -> Dict[str, str]:
+    """热更新已存在容器的内存上限；失败不会影响 DB 设置，下次重建会生效。"""
+    client = get_client()
+    result: Dict[str, str] = {}
+    for service in ("astrbot", "napcat", "llonebot"):
+        name = f"{service}_{username}"
+        try:
+            container = client.containers.get(name)
+        except docker.errors.NotFound:
+            continue
+        try:
+            limits = _container_memory_limits(user_id)
+            mb = limits.get(service, 0)
+            if mb > 0:
+                container.update(mem_limit=f"{mb}m")
+                result[service] = f"{mb}MB"
+            else:
+                container.update(mem_limit=0)
+                result[service] = "unlimited"
+        except Exception as e:
+            logger.warning(f"更新 {name} 内存限制失败: {e}")
+            result[service] = f"error: {e}"
+    return result
 
 # 镜像源列表，优先官方，失败后依次尝试加速源
 # 格式：None = 官方 docker.io，字符串 = 镜像加速前缀
@@ -488,6 +566,59 @@ find /app/napcat /root/.config/QQ -name 'onebot11_*.json' -type f 2>/dev/null | 
     }
 
 
+def _find_astrbot_cmd_config(container) -> str | None:
+    return _find_container_file(container, r'''
+for p in /AstrBot/data/cmd_config.json /app/data/cmd_config.json /data/cmd_config.json /AstrBot/cmd_config.json; do
+  [ -f "$p" ] && echo "$p" && exit 0
+done
+find /AstrBot /app /data /root -name 'cmd_config.json' -type f 2>/dev/null | sed -n '1p'
+''')
+
+
+def reset_astrbot_dashboard_password(username: str) -> Dict[str, Any]:
+    status = get_instance_status(username)
+    if status.get("astrbot") != "running":
+        return {"ok": False, "error": "AstrBot 容器需要处于 running 状态"}
+
+    client = get_client()
+    try:
+        astrbot_container = client.containers.get(f"astrbot_{username}")
+    except Exception:
+        return {"ok": False, "error": "无法读取 AstrBot 容器"}
+
+    config_path = _find_astrbot_cmd_config(astrbot_container)
+    if not config_path:
+        return {"ok": False, "error": "未在 AstrBot 容器内找到 cmd_config.json，请先启动一次 AstrBot"}
+
+    try:
+        config = _read_container_json(astrbot_container, config_path)
+    except Exception as exc:
+        return {"ok": False, "error": f"无法读取 AstrBot 配置文件：{config_path}；{exc}"}
+    if not isinstance(config, dict):
+        return {"ok": False, "error": "AstrBot cmd_config.json 格式无效"}
+
+    config["dashboard"] = {
+        "enable": True,
+        "host": "0.0.0.0",
+        "port": 6185,
+        "disable_access_log": True,
+        "ssl": {
+            "enable": False,
+            "cert_file": "",
+            "key_file": "",
+            "ca_certs": "",
+        },
+    }
+
+    try:
+        _write_container_json(astrbot_container, config_path, config)
+    except Exception as exc:
+        return {"ok": False, "error": f"无法写入 AstrBot 配置文件：{config_path}；{exc}"}
+
+    restart_user_instance(username, "astrbot")
+    return {"ok": True, "config_path": config_path}
+
+
 def write_napcat_config(napcat_dir: str, username: str, astrbot_ws_port: int):
     """
     NapCat 通过公网 IP + 对外端口连接到 AstrBot，完全绕过容器内部 hostname 解析。
@@ -602,9 +733,9 @@ def _create_instance_background(username: str, user_id: int, extra_ports: List[D
 
         _set_progress(username, f"正在启动 {bot_label} 容器...")
         if bot_type == "llonebot":
-            bot_c = _run_llonebot(client, username, ports, user_data_dir, bt_extra)
+            bot_c = _run_llonebot(client, username, user_id, ports, user_data_dir, bt_extra)
         else:
-            bot_c = _run_napcat(client, username, ports, user_data_dir, bt_extra)
+            bot_c = _run_napcat(client, username, user_id, ports, user_data_dir, bt_extra)
 
         _set_progress(username, "正在启动 AstrBot 容器...")
         astrbot_ports = {
@@ -620,6 +751,7 @@ def _create_instance_background(username: str, user_id: int, extra_ports: List[D
             environment={**_astrbot_env(), **_TZ_ENV},
             labels=_traefik_labels(username, "astrbot", 6185),
             detach=True, restart_policy={"Name": "unless-stopped"},
+            **_container_resource_kwargs(user_id, "astrbot"),
         )
 
         _set_progress(username, "实例创建完成！", done=True)
@@ -663,7 +795,7 @@ def _force_remove(client, name: str):
         pass
 
 
-def _run_napcat(client, username: str, ports: Dict, data_dir: str, nc_extra: Dict):
+def _run_napcat(client, username: str, user_id: int, ports: Dict, data_dir: str, nc_extra: Dict):
     """创建并启动 NapCat 容器（端口冲突前请先调用 _force_remove 清理旧容器）"""
     napcat_dir = os.path.join(data_dir, "napcat")
     napcat_ports = {"6099/tcp": ports["napcat_web"]}
@@ -676,10 +808,11 @@ def _run_napcat(client, username: str, ports: Dict, data_dir: str, nc_extra: Dic
         environment={**{"WEBUI_PORT": "6099"}, **_TZ_ENV},
         labels=_traefik_labels(username, "napcat", 6099),
         detach=True, restart_policy={"Name": "unless-stopped"},
+        **_container_resource_kwargs(user_id, "napcat"),
     )
 
 
-def _run_llonebot(client, username: str, ports: Dict, data_dir: str, ll_extra: Dict):
+def _run_llonebot(client, username: str, user_id: int, ports: Dict, data_dir: str, ll_extra: Dict):
     """创建并启动 LLOneBot 容器（端口冲突前请先调用 _force_remove 清理旧容器）"""
     llonebot_dir = os.path.join(data_dir, "llonebot")
     llonebot_ports = {"3080/tcp": ports["napcat_web"]}
@@ -692,6 +825,7 @@ def _run_llonebot(client, username: str, ports: Dict, data_dir: str, ll_extra: D
         environment={**{"WEBUI_PORT": "3080"}, **_TZ_ENV},
         labels=_traefik_labels(username, "llonebot", 3080),
         detach=True, restart_policy={"Name": "unless-stopped"},
+        **_container_resource_kwargs(user_id, "llonebot"),
     )
 
 
@@ -802,16 +936,17 @@ def recreate_services(username: str, user_id: int, services: List[str],
                         environment={**_astrbot_env(), **_TZ_ENV},
                         labels=_traefik_labels(username, "astrbot", 6185),
                         detach=True, restart_policy={"Name": "unless-stopped"},
+                        **_container_resource_kwargs(user_id, "astrbot"),
                     )
                 elif svc == "llonebot":
                     llonebot_dir = os.path.join(data_dir, "llonebot")
                     os.makedirs(llonebot_dir, exist_ok=True)
                     write_llonebot_config(llonebot_dir, username, ws_port)
-                    return _run_llonebot(client, username, ports, data_dir, ll_ex)
+                    return _run_llonebot(client, username, user_id, ports, data_dir, ll_ex)
                 else:  # napcat
                     napcat_dir = os.path.join(data_dir, "napcat")
                     write_napcat_config(napcat_dir, username, ws_port)
-                    return _run_napcat(client, username, ports, data_dir, nc_ex)
+                    return _run_napcat(client, username, user_id, ports, data_dir, nc_ex)
             except Exception as e:
                 err = str(e)
                 if "port is already allocated" in err and attempt < 2:
@@ -916,6 +1051,7 @@ def create_single_service_async(username: str, user_id: int, service: str, extra
                     environment={**_astrbot_env(), **_TZ_ENV},
                     labels=_traefik_labels(username, "astrbot", 6185),
                     detach=True, restart_policy={"Name": "unless-stopped"},
+                    **_container_resource_kwargs(user_id, "astrbot"),
                 )
 
             elif service == "napcat":
@@ -930,7 +1066,7 @@ def create_single_service_async(username: str, user_id: int, service: str, extra
                     client, NAPCAT_IMAGE,
                     lambda step, detail: _set_progress(username, step or "正在拉取 NapCat 镜像...", detail)
                 )
-                _run_napcat(client, username, ports, data_dir, nc_extra)
+                _run_napcat(client, username, user_id, ports, data_dir, nc_extra)
 
             elif service == "llonebot":
                 # LLOneBot 与 NapCat 互斥：先清除 napcat
@@ -944,7 +1080,7 @@ def create_single_service_async(username: str, user_id: int, service: str, extra
                     client, LLONEBOT_IMAGE,
                     lambda step, detail: _set_progress(username, step or "正在拉取 LLOneBot 镜像...", detail)
                 )
-                _run_llonebot(client, username, ports, data_dir, ll_extra)
+                _run_llonebot(client, username, user_id, ports, data_dir, ll_extra)
 
             _set_progress(username, f"{label} 创建完成！", done=True)
 
@@ -991,6 +1127,7 @@ def _recreate_containers(client, username: str, user_id: int, extra_ports: List[
         environment={**_astrbot_env(), **_TZ_ENV},
         labels=_traefik_labels(username, "astrbot", 6185),
         detach=True, restart_policy={"Name": "unless-stopped"},
+        **_container_resource_kwargs(user_id, "astrbot"),
     )
 
     # 再建 bot 容器
@@ -998,11 +1135,11 @@ def _recreate_containers(client, username: str, user_id: int, extra_ports: List[
         llonebot_dir = os.path.join(data_dir, "llonebot")
         os.makedirs(llonebot_dir, exist_ok=True)
         write_llonebot_config(llonebot_dir, username, effective_ws)
-        _run_llonebot(client, username, ports, data_dir, ll_extra)
+        _run_llonebot(client, username, user_id, ports, data_dir, ll_extra)
     else:
         napcat_dir = os.path.join(data_dir, "napcat")
         write_napcat_config(napcat_dir, username, effective_ws)
-        _run_napcat(client, username, ports, data_dir, nc_extra)
+        _run_napcat(client, username, user_id, ports, data_dir, nc_extra)
 
 
 def pull_and_recreate(username: str, user_id: int, extra_ports: List[Dict] = None, bot_type: str = "napcat"):
@@ -1105,6 +1242,7 @@ def pull_and_recreate_single(username: str, user_id: int, service: str, extra_po
                     environment={**_astrbot_env(), **_TZ_ENV},
                     labels=_traefik_labels(username, "astrbot", 6185),
                     detach=True, restart_policy={"Name": "unless-stopped"},
+                    **_container_resource_kwargs(user_id, "astrbot"),
                 )
 
             elif service == "napcat":
@@ -1114,7 +1252,7 @@ def pull_and_recreate_single(username: str, user_id: int, service: str, extra_po
                 napcat_dir = os.path.join(data_dir, "napcat")
                 write_napcat_config(napcat_dir, username, effective_ws)
                 _set_pull_progress(key, "用新镜像重建 NapCat 容器...")
-                _run_napcat(client, username, ports, data_dir, nc_extra)
+                _run_napcat(client, username, user_id, ports, data_dir, nc_extra)
 
             elif service == "llonebot":
                 _force_remove(client, f"napcat_{username}")
@@ -1124,7 +1262,7 @@ def pull_and_recreate_single(username: str, user_id: int, service: str, extra_po
                 os.makedirs(llonebot_dir, exist_ok=True)
                 write_llonebot_config(llonebot_dir, username, effective_ws)
                 _set_pull_progress(key, "用新镜像重建 LLOneBot 容器...")
-                _run_llonebot(client, username, ports, data_dir, ll_extra)
+                _run_llonebot(client, username, user_id, ports, data_dir, ll_extra)
 
             _set_pull_progress(key, f"{label} 更新完成！", done=True)
 

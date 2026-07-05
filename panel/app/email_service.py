@@ -287,8 +287,55 @@ def _record_sent(db, user_id: int, email_type: str, today: str):
         logger.error(f"记录邮件发送失败: {e}")
 
 
+def _site_int(db, key: str, default: int, min_value: int = 0, max_value: int = 3650) -> int:
+    from .models import SiteConfig
+    try:
+        cfg = db.query(SiteConfig).filter_by(key=key).first()
+        value = int((cfg.value if cfg else str(default)) or default)
+    except Exception:
+        value = default
+    return max(min_value, min(value, max_value))
+
+
+def _cleanup_expired_users(db, now: datetime) -> int:
+    """删除到期宽限期外的普通用户和实例，释放容量。"""
+    from sqlalchemy import or_
+    from .models import User, UserMessage, BannedUser
+    from .docker_manager import delete_user_instance
+
+    grace_days = _site_int(db, "auto_delete_expired_days", 7)
+    cutoff = now - timedelta(days=grace_days)
+    users = db.query(User).filter(
+        User.is_admin == False,
+        or_(User.retained_account == False, User.retained_account == None),
+        User.expire_at != None,
+        User.expire_at < cutoff,
+    ).all()
+    deleted = 0
+    for user in users:
+        try:
+            delete_user_instance(user.username)
+        except Exception as e:
+            logger.error(f"删除过期用户实例失败 {user.username}: {e}")
+        try:
+            if user.instance:
+                db.delete(user.instance)
+            db.query(UserMessage).filter_by(user_id=user.id).delete(synchronize_session=False)
+            banned = db.query(BannedUser).filter_by(username=user.username).first()
+            if banned:
+                db.delete(banned)
+            db.delete(user)
+            db.commit()
+            deleted += 1
+            logger.info(f"已自动删除到期超过 {grace_days} 天的用户: {user.username}")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"自动删除过期用户失败 {user.username}: {e}")
+    return deleted
+
+
 def check_and_enforce_expiry(db):
-    """检查到期用户：停止容器 + 发送邮件提醒（每类邮件每天只发一次）"""
+    """检查到期用户：停止容器、发送提醒，并按宽限期自动删除账号释放容量。"""
     from .models import SmtpConfig, User
     from .docker_manager import stop_user_instance
 
@@ -298,6 +345,8 @@ def check_and_enforce_expiry(db):
         # 若改为带时区的 aware datetime，与 naive expire_at 相减会抛 TypeError。
         now = datetime.now()
         today = now.strftime("%Y-%m-%d")
+
+        _cleanup_expired_users(db, now)
 
         users = db.query(User).filter(
             User.is_active == True,

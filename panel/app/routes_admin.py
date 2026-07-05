@@ -3,8 +3,11 @@ import json
 import uuid
 import secrets
 import logging
+import re
+from html import escape
 from datetime import datetime, timedelta
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
@@ -16,19 +19,21 @@ from .database import get_db
 from .models import (
     User, Instance, SmtpConfig, SiteConfig, PaymentConfig,
     RenewalRecord, InviteCode, BannedUser, EmailTemplate, Announcement,
+    UserMessage,
 )
 from .auth import (
     get_password_hash, get_current_user_from_cookie,
 )
 from .docker_manager import (
     stop_user_instance, start_user_instance, restart_user_instance,
-    delete_user_instance, get_all_instances_status,
+    delete_user_instance, get_all_instances_status, update_user_memory_limits,
 )
 from .email_service import send_email, DEFAULT_EMAIL_TEMPLATES, EMAIL_TEMPLATE_VARIABLES
 from .hub_sync import _push_ban_to_hub, _push_unban_to_hub
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+MAX_ACCOUNT_DAYS = 36500
 
 
 def require_admin(user: User = Depends(get_current_user_from_cookie)):
@@ -49,6 +54,86 @@ def _clean_announcement_style(font_size: str, color: str) -> tuple[int, str]:
     if color and len(color) not in (4, 7):
         color = ""
     return size, color
+
+
+def _tool_access_value(db: Session, key: str, default: str = "limited") -> str:
+    cfg = db.query(SiteConfig).filter_by(key=key).first()
+    value = (cfg.value if cfg else default or "limited").strip().lower()
+    if value not in ("free", "limited", "vip"):
+        value = default
+    return value
+
+
+def _normalize_tool_access(value: Optional[str], default: str = "limited") -> str:
+    value = (value or default).strip().lower()
+    return value if value in ("free", "limited", "vip") else default
+
+
+def _site_value(db: Session, key: str, default: str = "") -> str:
+    cfg = db.query(SiteConfig).filter_by(key=key).first()
+    return cfg.value if cfg and cfg.value is not None else default
+
+
+def _bounded_int(value: str, default: int, min_value: int = 0, max_value: int = 3650) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(min_value, min(parsed, max_value))
+
+
+def _memory_mb_value(value: Optional[str], default: Optional[int] = None) -> Optional[int]:
+    text_value = "" if value is None else str(value).strip()
+    if text_value == "":
+        return default
+    try:
+        mb = int(text_value)
+    except (TypeError, ValueError):
+        mb = default if default is not None else 0
+    return max(0, min(mb or 0, 262144))
+
+
+def _parse_optional_days(value: Optional[str], field_label: str, max_days: int = MAX_ACCOUNT_DAYS) -> Optional[int]:
+    text_value = (value or "").strip()
+    if not text_value:
+        return None
+    if not re.fullmatch(r"\d+", text_value):
+        raise ValueError(f"{field_label}必须是正整数")
+    days = int(text_value)
+    if days <= 0:
+        raise ValueError(f"{field_label}必须大于 0")
+    if days > max_days:
+        raise ValueError(f"{field_label}不能超过 {max_days} 天，如需长期保留请使用留存账号")
+    return days
+
+
+def _save_site_value(db: Session, key: str, value: str):
+    cfg = db.query(SiteConfig).filter_by(key=key).first()
+    if cfg:
+        cfg.value = value
+    else:
+        db.add(SiteConfig(key=key, value=value))
+
+
+def _send_user_message_email(db: Session, recipient: User, title: str, content: str, msg_type: str) -> bool:
+    cfg = db.query(SmtpConfig).filter_by(id=1).first()
+    if not cfg or not cfg.enabled or not recipient.email:
+        return False
+    type_label = {"notice": "通知", "warning": "警告", "tip": "提示"}.get(msg_type, "通知")
+    safe_title = escape(title.strip() or type_label)
+    safe_content = escape(content or "")
+    html = f"""
+    <div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.7;color:#1f2937;padding:24px;">
+      <div style="max-width:560px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;padding:24px;background:#ffffff;">
+        <div style="font-weight:700;color:#2563eb;font-size:20px;margin-bottom:12px;">HiveDeploy</div>
+        <div style="display:inline-block;background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:4px 10px;font-size:12px;margin-bottom:12px;">{type_label}</div>
+        <h2 style="font-size:18px;margin:0 0 14px;">{safe_title}</h2>
+        <div style="white-space:pre-wrap;color:#374151;">{safe_content}</div>
+        <p style="margin-top:22px;color:#9ca3af;font-size:12px;">此邮件是站内信副本，请登录面板查看完整通知。</p>
+      </div>
+    </div>
+    """
+    return send_email(recipient.email, f"[HiveDeploy] {title.strip() or type_label}", html, cfg)
 
 
 # ════════════════════════════════════════════════════════════
@@ -79,6 +164,9 @@ async def admin_page(request: Request, user: User = Depends(require_admin),
     invite_monthly_limit_cfg = db.query(SiteConfig).filter_by(key="invite_monthly_limit").first()
     invite_active_limit_cfg = db.query(SiteConfig).filter_by(key="invite_active_limit").first()
     invite_code_bytes_cfg = db.query(SiteConfig).filter_by(key="invite_code_bytes").first()
+    auto_delete_expired_days_cfg = db.query(SiteConfig).filter_by(key="auto_delete_expired_days").first()
+    default_astrbot_memory_cfg = db.query(SiteConfig).filter_by(key="default_astrbot_memory_mb").first()
+    default_bot_memory_cfg = db.query(SiteConfig).filter_by(key="default_bot_memory_mb").first()
     max_users = int(max_users_cfg.value or "0") if max_users_cfg else 0
     reg_open = reg_open_cfg.value if reg_open_cfg else "true"
     allowed_domains = allowed_domains_cfg.value if allowed_domains_cfg else ""
@@ -88,6 +176,9 @@ async def admin_page(request: Request, user: User = Depends(require_admin),
     invite_monthly_limit = invite_monthly_limit_cfg.value if invite_monthly_limit_cfg else "5"
     invite_active_limit = invite_active_limit_cfg.value if invite_active_limit_cfg else "10"
     invite_code_bytes = invite_code_bytes_cfg.value if invite_code_bytes_cfg else "8"
+    auto_delete_expired_days = auto_delete_expired_days_cfg.value if auto_delete_expired_days_cfg else "7"
+    default_astrbot_memory_mb = _memory_mb_value(default_astrbot_memory_cfg.value if default_astrbot_memory_cfg else None, 1024)
+    default_bot_memory_mb = _memory_mb_value(default_bot_memory_cfg.value if default_bot_memory_cfg else None, 500)
     current_users = db.query(User).count()
     invite_codes = db.query(InviteCode).filter_by(hidden=False).order_by(InviteCode.created_at.desc()).limit(200).all()
     total_active = db.query(InviteCode).filter_by(used=False, hidden=False).count()
@@ -122,6 +213,10 @@ async def admin_page(request: Request, user: User = Depends(require_admin),
         "invite_monthly_limit": invite_monthly_limit,
         "invite_active_limit": invite_active_limit,
         "invite_code_bytes": invite_code_bytes,
+        "auto_delete_expired_days": auto_delete_expired_days,
+        "default_astrbot_memory_mb": default_astrbot_memory_mb,
+        "default_bot_memory_mb": default_bot_memory_mb,
+        "max_account_days": MAX_ACCOUNT_DAYS,
         "invite_codes": invite_codes, "total_active_codes": total_active,
         "invite_stats": invite_stats,
     })
@@ -133,18 +228,24 @@ async def admin_create_user(
     password: str = Form(...),
     is_admin: Optional[str] = Form(None),
     expire_days: Optional[str] = Form(None),
+    vip_days: Optional[str] = Form(None),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     if db.query(User).filter_by(username=username).first():
         return RedirectResponse("/admin?error=用户名已存在", 302)
     _is_admin = is_admin in ("on", "true", "1", "yes")
-    _expire_days = int(expire_days) if expire_days and expire_days.strip().isdigit() else None
+    try:
+        _expire_days = _parse_optional_days(expire_days, "有效天数")
+        _vip_days = _parse_optional_days(vip_days, "VIP天数")
+    except ValueError as exc:
+        return RedirectResponse(f"/admin?error={quote(str(exc))}", 302)
     expire_at = datetime.now() + timedelta(days=_expire_days) if _expire_days else None
+    vip_expire_at = datetime.now() + timedelta(days=_vip_days) if _vip_days else None
     db.add(User(
         username=username, email=email,
         hashed_password=get_password_hash(password),
-        is_admin=_is_admin, expire_at=expire_at,
+        is_admin=_is_admin, expire_at=expire_at, vip_expire_at=vip_expire_at,
     ))
     db.commit()
     return RedirectResponse("/admin?created=1", 302)
@@ -179,6 +280,16 @@ async def admin_reset_password(user_id: int, user: User = Depends(require_admin)
     return RedirectResponse("/admin?reset=1", 302)
 
 
+@router.post("/admin/user/{user_id}/toggle_retained")
+async def admin_toggle_retained_user(user_id: int, user: User = Depends(require_admin),
+                                     db: Session = Depends(get_db)):
+    u = db.query(User).filter_by(id=user_id).first()
+    if u and not u.is_admin:
+        u.retained_account = not bool(getattr(u, "retained_account", False))
+        db.commit()
+    return RedirectResponse("/admin", 302)
+
+
 @router.post("/admin/user/{user_id}/delete")
 async def admin_delete_user(user_id: int, user: User = Depends(require_admin),
                             db: Session = Depends(get_db)):
@@ -186,6 +297,7 @@ async def admin_delete_user(user_id: int, user: User = Depends(require_admin),
     if u and not u.is_admin:
         delete_user_instance(u.username)
         if u.instance: db.delete(u.instance)
+        db.query(UserMessage).filter_by(user_id=u.id).delete(synchronize_session=False)
         bu = db.query(BannedUser).filter_by(username=u.username).first()
         if bu:
             db.delete(bu)
@@ -235,6 +347,99 @@ async def admin_set_expire(user_id: int, request: Request,
     return JSONResponse({"ok": True, "expire_at": u.expire_at.strftime("%Y-%m-%d") if u.expire_at else None})
 
 
+@router.post("/admin/user/{user_id}/set_vip")
+async def admin_set_vip(user_id: int, request: Request,
+                        user: User = Depends(require_admin),
+                        db: Session = Depends(get_db)):
+    body = await request.json()
+    u = db.query(User).filter_by(id=user_id).first()
+    if not u:
+        raise HTTPException(404)
+
+    action = body.get("action")
+    if action == "clear":
+        u.vip_expire_at = None
+    elif action == "set":
+        date_str = body.get("date")
+        u.vip_expire_at = datetime.strptime(date_str + " 23:59:59", "%Y-%m-%d %H:%M:%S") if date_str else None
+    elif action in ("add30", "add90", "add365"):
+        days = int(action[3:])
+        base = max(u.vip_expire_at or datetime.now(), datetime.now())
+        u.vip_expire_at = base + timedelta(days=days)
+    else:
+        return JSONResponse({"ok": False, "error": "未知操作"}, status_code=400)
+
+    db.commit()
+    return JSONResponse({"ok": True, "vip_expire_at": u.vip_expire_at.strftime("%Y-%m-%d") if u.vip_expire_at else None})
+
+
+@router.post("/admin/user/{user_id}/set_memory_limits")
+async def admin_set_memory_limits(user_id: int, request: Request,
+                                  user: User = Depends(require_admin),
+                                  db: Session = Depends(get_db)):
+    body = await request.json()
+    u = db.query(User).filter_by(id=user_id).first()
+    if not u:
+        raise HTTPException(404)
+    u.astrbot_memory_limit_mb = _memory_mb_value(body.get("astrbot_memory_limit_mb"), None)
+    u.bot_memory_limit_mb = _memory_mb_value(body.get("bot_memory_limit_mb"), None)
+    db.commit()
+    update_result = {}
+    try:
+        update_result = update_user_memory_limits(u.username, u.id)
+    except Exception as e:
+        logger.warning(f"更新运行中容器内存限制失败 {u.username}: {e}")
+        update_result = {"error": str(e)}
+    return JSONResponse({
+        "ok": True,
+        "astrbot_memory_limit_mb": u.astrbot_memory_limit_mb,
+        "bot_memory_limit_mb": u.bot_memory_limit_mb,
+        "update_result": update_result,
+    })
+
+
+@router.post("/admin/tools/settings")
+async def admin_save_tool_settings(
+    reset_astrbot_password_access: str = Form("limited"),
+    auto_config_access: str = Form("limited"),
+    reset_astrbot_password_badge: str = Form(""),
+    auto_config_badge: str = Form("Beta"),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    values = {
+        "quick_tool_reset_astrbot_password_access": _normalize_tool_access(reset_astrbot_password_access),
+        "quick_tool_auto_config_access": _normalize_tool_access(auto_config_access),
+        "quick_tool_reset_astrbot_password_badge": reset_astrbot_password_badge.strip()[:24],
+        "quick_tool_auto_config_badge": auto_config_badge.strip()[:24],
+        "quick_tool_reset_astrbot_password_vip_only": "true" if reset_astrbot_password_access == "vip" else "false",
+    }
+    for key, value in values.items():
+        cfg = db.query(SiteConfig).filter_by(key=key).first()
+        if cfg:
+            cfg.value = value
+        else:
+            db.add(SiteConfig(key=key, value=value))
+    db.commit()
+    return RedirectResponse("/admin/tools?saved=1", 302)
+
+
+@router.get("/admin/tools", response_class=HTMLResponse)
+async def admin_tools_page(request: Request, user: User = Depends(require_admin),
+                           db: Session = Depends(get_db)):
+    reset_tool_vip_cfg = db.query(SiteConfig).filter_by(key="quick_tool_reset_astrbot_password_vip_only").first()
+    reset_access = _tool_access_value(db, "quick_tool_reset_astrbot_password_access", "limited")
+    if reset_tool_vip_cfg and reset_tool_vip_cfg.value == "true":
+        reset_access = "vip"
+    return templates.TemplateResponse(request, "admin_tools.html", {
+        "user": user,
+        "reset_astrbot_password_access": reset_access,
+        "auto_config_access": _tool_access_value(db, "quick_tool_auto_config_access", "limited"),
+        "reset_astrbot_password_badge": _site_value(db, "quick_tool_reset_astrbot_password_badge", ""),
+        "auto_config_badge": _site_value(db, "quick_tool_auto_config_badge", "Beta"),
+    })
+
+
 @router.post("/admin/run_expiry_check")
 async def admin_run_expiry_check(user: User = Depends(require_admin),
                                   db: Session = Depends(get_db)):
@@ -265,6 +470,9 @@ async def admin_save_settings(
     invite_monthly_limit: str = Form("5"),
     invite_active_limit: str = Form("10"),
     invite_code_bytes: str = Form("8"),
+    auto_delete_expired_days: str = Form("7"),
+    default_astrbot_memory_mb: str = Form("1024"),
+    default_bot_memory_mb: str = Form("500"),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -275,7 +483,10 @@ async def admin_save_settings(
                      ("invite_min_days", invite_min_days),
                      ("invite_monthly_limit", invite_monthly_limit),
                      ("invite_active_limit", invite_active_limit),
-                     ("invite_code_bytes", invite_code_bytes)]:
+                     ("invite_code_bytes", invite_code_bytes),
+                     ("auto_delete_expired_days", str(_bounded_int(auto_delete_expired_days, 7))),
+                     ("default_astrbot_memory_mb", str(_memory_mb_value(default_astrbot_memory_mb, 1024))),
+                     ("default_bot_memory_mb", str(_memory_mb_value(default_bot_memory_mb, 500)))]:
         cfg = db.query(SiteConfig).filter_by(key=key).first()
         if cfg:
             cfg.value = val
@@ -283,6 +494,70 @@ async def admin_save_settings(
             db.add(SiteConfig(key=key, value=val))
     db.commit()
     return RedirectResponse("/admin?settings_saved=1", 302)
+
+
+# ════════════════════════════════════════════════════════════
+#  站内信管理
+# ════════════════════════════════════════════════════════════
+@router.get("/admin/messages", response_class=HTMLResponse)
+async def admin_messages_page(request: Request, user: User = Depends(require_admin),
+                              db: Session = Depends(get_db)):
+    users = db.query(User).order_by(User.username).all()
+    messages = db.query(UserMessage).order_by(UserMessage.created_at.desc()).limit(200).all()
+    return templates.TemplateResponse(request, "messages.html", {
+        "user": user,
+        "users": users,
+        "messages": messages,
+        "message_email_copy_default": _site_value(db, "message_email_copy_default", "false"),
+        "smtp_enabled": bool(db.query(SmtpConfig).filter_by(id=1, enabled=True).first()),
+    })
+
+
+@router.post("/admin/messages/settings")
+async def admin_messages_settings(message_email_copy_default: str = Form("false"),
+                                  user: User = Depends(require_admin),
+                                  db: Session = Depends(get_db)):
+    _save_site_value(db, "message_email_copy_default", "true" if message_email_copy_default == "true" else "false")
+    db.commit()
+    return RedirectResponse("/admin/messages?saved=1", 302)
+
+
+@router.post("/admin/messages/create")
+async def admin_message_create(
+    user_id: int = Form(...),
+    title: str = Form(...),
+    content: str = Form(...),
+    type: str = Form("notice"),
+    send_email_copy: Optional[str] = Form(None),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    recipient = db.query(User).filter_by(id=user_id).first()
+    if not recipient:
+        raise HTTPException(404, "用户不存在")
+    msg_type = type if type in ("notice", "warning", "tip") else "notice"
+    email_sent = False
+    if send_email_copy == "true":
+        email_sent = _send_user_message_email(db, recipient, title, content, msg_type)
+    db.add(UserMessage(
+        user_id=recipient.id,
+        title=title.strip()[:128] or "站内信",
+        content=content.strip(),
+        type=msg_type,
+        email_sent=email_sent,
+    ))
+    db.commit()
+    return RedirectResponse("/admin/messages?saved=1", 302)
+
+
+@router.post("/admin/messages/{message_id}/delete")
+async def admin_message_delete(message_id: int, user: User = Depends(require_admin),
+                               db: Session = Depends(get_db)):
+    msg = db.query(UserMessage).filter_by(id=message_id).first()
+    if msg:
+        db.delete(msg)
+        db.commit()
+    return RedirectResponse("/admin/messages?deleted=1", 302)
 
 
 # ════════════════════════════════════════════════════════════

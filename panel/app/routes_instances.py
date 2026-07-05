@@ -1,6 +1,7 @@
 import json
 import re
 import logging
+from datetime import datetime
 
 import docker as docker_lib
 from fastapi import APIRouter, Request, Depends, HTTPException, Body
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from .bootstrap import templates
 from .database import get_db, SessionLocal
-from .models import User, Instance
+from .models import User, Instance, SiteConfig
 from .auth import get_current_user_from_cookie
 from .docker_manager import (
     create_user_instance_async, get_creation_progress,
@@ -28,6 +29,24 @@ router = APIRouter()
 
 
 VALID_SERVICES = ("astrbot", "napcat", "llonebot")
+
+
+def _is_vip_user(user: User) -> bool:
+    if user.is_admin:
+        return True
+    return bool(user.vip_expire_at and user.vip_expire_at >= datetime.now())
+
+
+def _tool_access(db: Session, key: str, default: str = "limited") -> str:
+    cfg = db.query(SiteConfig).filter_by(key=key).first()
+    value = (cfg.value if cfg else default or "limited").strip().lower()
+    if value not in ("free", "limited", "vip"):
+        value = default
+    return value
+
+
+def _tool_allowed(access: str, user: User) -> bool:
+    return access != "vip" or _is_vip_user(user)
 
 
 # ════════════════════════════════════════════════════════════
@@ -261,6 +280,9 @@ async def update_single_progress(service: str,
 @router.post("/api/instance/auto_config")
 async def auto_config_instance(user: User = Depends(get_current_user_from_cookie),
                                db: Session = Depends(get_db)):
+    access = _tool_access(db, "quick_tool_auto_config_access", "limited")
+    if not _tool_allowed(access, user):
+        return JSONResponse({"ok": False, "error": "该快捷工具仅限 VIP 用户使用"}, status_code=403)
     inst = db.query(Instance).filter_by(user_id=user.id).first()
     if not inst:
         return JSONResponse({"ok": False, "error": "实例不存在"})

@@ -17,6 +17,10 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now)
     expire_at = Column(DateTime, nullable=True)
+    vip_expire_at = Column(DateTime, nullable=True)
+    retained_account = Column(Boolean, default=False)
+    astrbot_memory_limit_mb = Column(Integer, nullable=True)
+    bot_memory_limit_mb = Column(Integer, nullable=True)
 
     instance = relationship("Instance", back_populates="user", uselist=False)
 
@@ -100,6 +104,22 @@ class Announcement(Base):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
+class UserMessage(Base):
+    """站内信：管理员定向发送给单个用户"""
+    __tablename__ = "user_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String(128), nullable=False, default="")
+    content = Column(Text, nullable=False, default="")
+    type = Column(String(32), nullable=False, default="notice")
+    email_sent = Column(Boolean, default=False)
+    read_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+    user = relationship("User")
+
+
 class EmailLog(Base):
     """邮件发送记录，防止重复发送"""
     __tablename__ = "email_log"
@@ -133,6 +153,19 @@ class VerificationCode(Base):
     created_at = Column(DateTime, default=datetime.now)
     expires_at = Column(DateTime, nullable=False)
     used       = Column(Boolean, default=False)
+
+
+class EmailCaptchaChallenge(Base):
+    """发送邮件前的人机校验挑战"""
+    __tablename__ = "email_captcha_challenges"
+
+    id         = Column(String(64), primary_key=True)
+    purpose    = Column(String(32), nullable=False, index=True)
+    code_hash  = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+    expires_at = Column(DateTime, nullable=False)
+    used       = Column(Boolean, default=False)
+    attempts   = Column(Integer, default=0)
 
 
 class PaymentConfig(Base):

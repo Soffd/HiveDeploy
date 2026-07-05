@@ -5,6 +5,10 @@ import docker
 import os
 import tarfile
 import io
+import posixpath
+import shutil
+import tempfile
+import zipfile
 from typing import List, Dict
 
 SERVICE_CONFIG = {
@@ -22,7 +26,7 @@ SERVICE_CONFIG = {
     "napcat": {
         "root": "/app",
         "shortcuts": {
-            "⚙️ NapCat配置": "/app/config",
+            "⚙️ NapCat配置": "/app/napcat/config",
             "📁 应用目录":   "/app",
             "🏠 QQ数据":     "/root/.config/QQ",
             "🌐 根目录":     "/",
@@ -251,11 +255,49 @@ def extract_archive(username: str, service: str, path: str, dest_dir: str) -> Di
 
 
 def compress_path(username: str, service: str, src: str, dest_zip: str) -> Dict:
-    parent = "/".join(src.rstrip("/").split("/")[:-1]) or "/"
-    name   = src.rstrip("/").split("/")[-1]
-    out, rc = _exec(username, service,
-        f'sh -c \'cd "{parent}" && zip -r "{dest_zip}" "{name}" 2>&1\'')
-    return {"error": out if rc != 0 else ""}
+    """在面板侧生成 zip，避免依赖目标容器内安装 zip 命令。"""
+    try:
+        c = _get_container(username, service)
+        bits, _ = c.get_archive(src)
+        dest_dir = posixpath.dirname(dest_zip) or "/"
+        filename = posixpath.basename(dest_zip) or "archive.zip"
+        if not filename.lower().endswith(".zip"):
+            filename += ".zip"
+
+        with tempfile.TemporaryFile() as tar_tmp, tempfile.TemporaryFile() as zip_tmp, tempfile.TemporaryFile() as upload_tmp:
+            for chunk in bits:
+                tar_tmp.write(chunk)
+            tar_tmp.seek(0)
+
+            with tarfile.open(fileobj=tar_tmp, mode="r:*") as tar, zipfile.ZipFile(zip_tmp, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+                for member in tar.getmembers():
+                    zip_name = member.name.lstrip("/").replace("\\", "/")
+                    if not zip_name or zip_name == ".":
+                        continue
+                    if member.isdir():
+                        zf.writestr(zip_name.rstrip("/") + "/", b"")
+                        continue
+                    if not member.isfile():
+                        continue
+                    extracted = tar.extractfile(member)
+                    if extracted is None:
+                        continue
+                    with zf.open(zip_name, "w") as target:
+                        shutil.copyfileobj(extracted, target, length=1024 * 1024)
+
+            zip_tmp.seek(0, os.SEEK_END)
+            zip_size = zip_tmp.tell()
+            zip_tmp.seek(0)
+            with tarfile.open(fileobj=upload_tmp, mode="w") as tar:
+                info = tarfile.TarInfo(name=filename)
+                info.size = zip_size
+                tar.addfile(info, zip_tmp)
+            upload_tmp.seek(0)
+            if not c.put_archive(dest_dir, upload_tmp):
+                return {"error": "写入压缩文件失败"}
+        return {"error": ""}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def get_file_info(username: str, service: str, path: str) -> Dict:

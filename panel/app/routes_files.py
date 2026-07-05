@@ -33,6 +33,8 @@ async def files_page(service: str, request: Request, path: str = None,
         raise HTTPException(404)
     root      = get_root(service)
     path      = path or root
+    if service == "napcat" and path == "/app/config":
+        path = "/app/napcat/config"
     if service == "llonebot" and path.startswith("/app"):
         path = root
     shortcuts = get_shortcuts(service)
@@ -129,6 +131,22 @@ async def mkdir(service: str, base_path: str = Form(...),
     new_path = (base_path.rstrip("/") + "/" + dirname).replace("//", "/")
     make_dir(user.username, service, new_path)
     return RedirectResponse(f"/files/{service}?path={return_path}", 302)
+
+
+@router.post("/files/{service}/create")
+async def create_file(service: str, base_path: str = Form(...),
+                      filename: str = Form(...), content: str = Form(""),
+                      user: User = Depends(get_current_user_from_cookie)):
+    name = filename.strip().replace("\\", "/").split("/")[-1]
+    if not name:
+        return JSONResponse({"ok": False, "error": "文件名不能为空"})
+    if '"' in name or "\x00" in name:
+        return JSONResponse({"ok": False, "error": "文件名包含不支持的字符"})
+    new_path = (base_path.rstrip("/") + "/" + name).replace("//", "/")
+    if path_exists(user.username, service, new_path) != "notfound":
+        return JSONResponse({"ok": False, "error": "文件已存在"})
+    result = write_file(user.username, service, new_path, content)
+    return JSONResponse({"ok": not bool(result["error"]), "error": result["error"], "path": new_path})
 
 
 @router.get("/files/{service}/download")

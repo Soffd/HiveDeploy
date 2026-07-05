@@ -3,12 +3,15 @@ import re
 import json
 import secrets
 import logging
+import unicodedata
+from urllib.parse import urlparse
 from datetime import datetime
 from zoneinfo import ZoneInfo
 CST = ZoneInfo("Asia/Shanghai")
 from typing import Optional
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -28,6 +31,18 @@ def _run_migrations():
         users_cols = [c["name"] for c in insp.get_columns("users")]
         if "expire_at" not in users_cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN expire_at DATETIME"))
+            conn.commit()
+        if "vip_expire_at" not in users_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN vip_expire_at DATETIME"))
+            conn.commit()
+        if "retained_account" not in users_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN retained_account BOOLEAN DEFAULT 0"))
+            conn.commit()
+        if "astrbot_memory_limit_mb" not in users_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN astrbot_memory_limit_mb INTEGER"))
+            conn.commit()
+        if "bot_memory_limit_mb" not in users_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN bot_memory_limit_mb INTEGER"))
             conn.commit()
 
         if insp.has_table("instances"):
@@ -188,6 +203,22 @@ def _run_migrations():
                     })
                     conn.commit()
 
+        if not insp.has_table("user_messages"):
+            conn.execute(text("""
+                CREATE TABLE user_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    title VARCHAR(128) NOT NULL DEFAULT '',
+                    content TEXT NOT NULL DEFAULT '',
+                    type VARCHAR(32) NOT NULL DEFAULT 'notice',
+                    email_sent BOOLEAN DEFAULT 0,
+                    read_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX ix_user_messages_user_id ON user_messages (user_id)"))
+            conn.commit()
+
 
 from .models import Base, VerificationCode, SiteConfig as SC2
 Base.metadata.create_all(bind=engine)
@@ -219,15 +250,59 @@ _ensure_site_config("announcement_type", "info")
 _ensure_site_config("announcement_title", "")
 _ensure_site_config("announcement_content", "")
 _ensure_site_config("announcement_version", "")
+_ensure_site_config("quick_tool_reset_astrbot_password_vip_only", "false")
+_ensure_site_config("quick_tool_reset_astrbot_password_access", "limited")
+_ensure_site_config("quick_tool_auto_config_access", "limited")
+_ensure_site_config("quick_tool_reset_astrbot_password_badge", "")
+_ensure_site_config("quick_tool_auto_config_badge", "Beta")
+_ensure_site_config("auto_delete_expired_days", "7")
+_ensure_site_config("message_email_copy_default", "false")
+_ensure_site_config("default_astrbot_memory_mb", "1024")
+_ensure_site_config("default_bot_memory_mb", "500")
 
 UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/app/db/uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="HiveDeploy")
+
+# CORS 中间件（无 Traefik 部署模式必需）
+# 默认只允许 localhost；通过 CORS_ALLOW_ORIGINS 环境变量可配置为 "*" 或逗号分隔的域名列表
+_cors_origins_raw = os.environ.get("CORS_ALLOW_ORIGINS", "localhost,127.0.0.1")
+if _cors_origins_raw.strip() == "*":
+    _cors_origins = ["*"]
+else:
+    _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    max_age=3600,
+)
+
 app.mount("/static", StaticFiles(directory="/app/static"), name="static")
 templates = Jinja2Templates(directory="/app/templates")
 
-HOST = os.environ.get("PLATFORM_HOST", "localhost")
+def _clean_platform_host(value: str) -> str:
+    raw = unicodedata.normalize("NFKC", str(value or "localhost")).strip().lstrip("\ufeff")
+    raw = raw.replace("\ufffd", "").replace("ï¿½", "").replace("�", "")
+    if not raw:
+        return "localhost"
+    parsed = urlparse(raw if "://" in raw else f"//{raw}")
+    host = parsed.hostname or raw.split("/")[0]
+    host = host.strip().strip("[]")
+    numbers = re.findall(r"\d{1,3}", host)
+    if len(numbers) == 4 and not re.search(r"[A-Za-z]", host):
+        octets = [int(n) for n in numbers]
+        if all(0 <= n <= 255 for n in octets):
+            return ".".join(str(n) for n in octets)
+    # 仅保留 URL host 合法字符，避免环境变量里的不可见字符/乱码污染链接。
+    host = re.sub(r"[^A-Za-z0-9.\-:]", "", host)
+    return host or "localhost"
+
+
+HOST = _clean_platform_host(os.environ.get("PLATFORM_HOST", "localhost"))
 
 # ── 模板全局工具 ─────────────────────────────────────────────
 def status_badge(s: str) -> str:
@@ -243,6 +318,21 @@ def days_until_expire(user) -> Optional[int]:
     if user.expire_at is None:
         return None
     delta = user.expire_at - datetime.now()
+    return delta.days
+
+def user_vip_active(user) -> bool:
+    if getattr(user, "is_admin", False):
+        return True
+    vip_expire_at = getattr(user, "vip_expire_at", None)
+    if vip_expire_at is None:
+        return False
+    return vip_expire_at >= datetime.now()
+
+def days_until_vip_expire(user) -> Optional[int]:
+    vip_expire_at = getattr(user, "vip_expire_at", None)
+    if vip_expire_at is None:
+        return None
+    delta = vip_expire_at - datetime.now()
     return delta.days
 
 def regex_match(value: str, pattern: str) -> bool:
@@ -287,6 +377,8 @@ def get_site_announcement() -> dict:
 templates.env.globals["status_badge"]       = status_badge
 templates.env.globals["user_expired"]       = user_expired
 templates.env.globals["days_until_expire"]  = days_until_expire
+templates.env.globals["user_vip_active"]    = user_vip_active
+templates.env.globals["days_until_vip_expire"] = days_until_vip_expire
 templates.env.globals["get_site_announcement"] = get_site_announcement
 templates.env.filters["regex_match"]        = regex_match
 templates.env.filters["tojson"]             = json.dumps

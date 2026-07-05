@@ -39,7 +39,7 @@
   async function loadResource(code) {
     if (_cache[code]) return _cache[code];
     try {
-      const resp = await fetch('/static/i18n/' + code + '.json');
+      const resp = await fetch('/static/i18n/' + code + '.json?v=20260520-announcement-i18n', { cache: 'no-store' });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       _cache[code] = data;
@@ -72,6 +72,9 @@
   function applyToElement(el, resource) {
     // text content
     if (el.hasAttribute('data-i18n')) {
+      if (!el.hasAttribute('data-i18n-default')) {
+        el.setAttribute('data-i18n-default', el.textContent);
+      }
       const key = el.getAttribute('data-i18n');
       const val = resolveKey(resource, key);
       if (val !== undefined) {
@@ -81,28 +84,42 @@
           if (raw) params = JSON.parse(raw);
         } catch (_) { /* ignore malformed JSON */ }
         el.textContent = interpolate(val, params);
+      } else {
+        el.textContent = el.getAttribute('data-i18n-default') || '';
       }
     }
 
     // placeholder
     if (el.hasAttribute('data-i18n-placeholder')) {
+      if (!el.hasAttribute('data-i18n-placeholder-default')) {
+        el.setAttribute('data-i18n-placeholder-default', el.getAttribute('placeholder') || '');
+      }
       const key = el.getAttribute('data-i18n-placeholder');
       const val = resolveKey(resource, key);
       if (val !== undefined) el.setAttribute('placeholder', val);
+      else el.setAttribute('placeholder', el.getAttribute('data-i18n-placeholder-default') || '');
     }
 
     // title attribute
     if (el.hasAttribute('data-i18n-title')) {
+      if (!el.hasAttribute('data-i18n-title-default')) {
+        el.setAttribute('data-i18n-title-default', el.getAttribute('title') || '');
+      }
       const key = el.getAttribute('data-i18n-title');
       const val = resolveKey(resource, key);
       if (val !== undefined) el.setAttribute('title', val);
+      else el.setAttribute('title', el.getAttribute('data-i18n-title-default') || '');
     }
 
     // aria-label
     if (el.hasAttribute('data-i18n-aria-label')) {
+      if (!el.hasAttribute('data-i18n-aria-label-default')) {
+        el.setAttribute('data-i18n-aria-label-default', el.getAttribute('aria-label') || '');
+      }
       const key = el.getAttribute('data-i18n-aria-label');
       const val = resolveKey(resource, key);
       if (val !== undefined) el.setAttribute('aria-label', val);
+      else el.setAttribute('aria-label', el.getAttribute('data-i18n-aria-label-default') || '');
     }
   }
 
@@ -144,6 +161,25 @@
     for (var li = 0; li < languages.length; li++) {
       if (languages[li].code === currentCode) { currentLabel = languages[li].label; break; }
     }
+    var isMobileMenu = container.id === 'i18n-switcher-container-mobile';
+    if (isMobileMenu) {
+      let mobileHtml = '<div class="i18n-switcher i18n-switcher-mobile">';
+      mobileHtml += '<div class="text-secondary small px-1 mb-1"><i class="bi bi-translate me-1"></i>' + currentLabel + '</div>';
+      mobileHtml += '<div class="i18n-mobile-grid">';
+      languages.forEach(function (lang) {
+        mobileHtml += '<button type="button" class="i18n-mobile-option' + (lang.code === currentCode ? ' active' : '') + '" data-lang="' + lang.code + '">' + lang.label + '</button>';
+      });
+      mobileHtml += '</div></div>';
+      container.innerHTML = mobileHtml;
+      container.querySelectorAll('.i18n-mobile-option').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var code = btn.getAttribute('data-lang');
+          if (code === getLang()) return;
+          switchLanguage(code);
+        });
+      });
+      return;
+    }
     let html = '<div class="i18n-switcher dropdown">';
     html += '<button class="btn btn-sm btn-outline-secondary dropdown-toggle i18n-switcher-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">';
     html += '<i class="bi bi-translate me-1"></i><span class="i18n-current-label">' + currentLabel + '</span>';
@@ -177,8 +213,10 @@
     var resource = await loadResource(code);
     if (!resource) return;
     await applyAll(resource);
-    var container = document.getElementById('i18n-switcher-container');
-    if (container) renderSwitcher(container, code);
+    document.querySelectorAll('.i18n-switcher-host, #i18n-switcher-container').forEach(function (container) {
+      renderSwitcher(container, code);
+    });
+    document.dispatchEvent(new CustomEvent('hive:i18n-change', { detail: { lang: code } }));
   }
 
   async function init() {
@@ -191,8 +229,10 @@
     await applyAll(resource);
 
     // Render the switcher in the navbar
-    var container = document.getElementById('i18n-switcher-container');
-    if (container) renderSwitcher(container, code);
+    document.querySelectorAll('.i18n-switcher-host, #i18n-switcher-container').forEach(function (container) {
+      renderSwitcher(container, code);
+    });
+    document.dispatchEvent(new CustomEvent('hive:i18n-change', { detail: { lang: code } }));
   }
 
   // Expose to global

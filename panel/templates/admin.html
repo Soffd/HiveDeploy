@@ -136,11 +136,11 @@
     <h4 class="mb-0 fw-semibold"><i class="bi bi-shield-lock me-2"></i><span data-i18n="admin.admin_panel">管理后台</span></h4>
     <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;"><span data-i18n="admin.status_overview">平台状态总览</span></p>
     <div class="admin-quick-nav">
-      <a href="#admin-overview"><i class="bi bi-activity"></i>状态概览</a>
-      <a href="#admin-config"><i class="bi bi-sliders"></i>配置与创建</a>
-      <a href="/admin/announcements"><i class="bi bi-megaphone"></i>公告设置</a>
-      <a href="#admin-resources"><i class="bi bi-hdd-network"></i>资源列表</a>
-      <a href="#admin-invites"><i class="bi bi-ticket-perforated"></i>邀请码</a>
+      <a href="#admin-overview"><i class="bi bi-activity"></i><span data-i18n="admin.quick_overview">状态概览</span></a>
+      <a href="#admin-config"><i class="bi bi-sliders"></i><span data-i18n="admin.quick_config">配置与创建</span></a>
+      <a href="/admin/announcements"><i class="bi bi-megaphone"></i><span data-i18n="sidebar.announcement_settings">公告设置</span></a>
+      <a href="#admin-resources"><i class="bi bi-hdd-network"></i><span data-i18n="admin.quick_resources">资源列表</span></a>
+      <a href="#admin-invites"><i class="bi bi-ticket-perforated"></i><span data-i18n="admin.quick_invites">邀请码</span></a>
     </div>
   </div>
   <span class="ms-auto tag-pill" id="liveDot" style="opacity:0; transition:opacity 0.4s;">
@@ -314,6 +314,19 @@
         <input type="text" class="form-control form-control-sm mb-2" name="allowed_email_domains"
                value="{{ allowed_domains or '' }}" placeholder="gmail.com,qq.com（逗号分隔，留空=不限制）"
                style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.auto_delete_expired_days">过期账号自动删除宽限天数</label>
+        <input type="number" class="form-control form-control-sm mb-2" name="auto_delete_expired_days"
+               value="{{ auto_delete_expired_days }}" min="0" max="3650"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <span class="text-secondary d-block mb-2" style="font-size:.7rem;" data-i18n="admin.auto_delete_expired_hint">默认 7 天；到期超过该天数后自动删除账号和实例释放容量。</span>
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.default_astrbot_memory">默认 AstrBot 内存上限（MB，0=不限制）</label>
+        <input type="number" class="form-control form-control-sm mb-2" name="default_astrbot_memory_mb"
+               value="{{ default_astrbot_memory_mb }}" min="0" max="262144"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.default_bot_memory">默认 Bot 内存上限（MB，0=不限制）</label>
+        <input type="number" class="form-control form-control-sm mb-2" name="default_bot_memory_mb"
+               value="{{ default_bot_memory_mb }}" min="0" max="262144"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
         <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.hub_url">Hub地址</label>
         <input type="text" class="form-control form-control-sm mb-2" name="hub_url"
                value="{{ hub_url or '' }}"
@@ -354,7 +367,13 @@
       </div>
       <div class="col-md-2">
         <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.expire_days">有效天数（留空=永久）</label>
-        <input type="number" class="form-control form-control-sm" name="expire_days" min="1"
+        <input type="number" class="form-control form-control-sm" name="expire_days" min="1" max="{{ max_account_days }}"
+               placeholder="如：30"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="admin.vip_days">VIP天数（留空=非VIP）</label>
+        <input type="number" class="form-control form-control-sm" name="vip_days" min="1" max="{{ max_account_days }}"
                placeholder="如：30"
                style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
       </div>
@@ -364,7 +383,7 @@
           <label class="form-check-label text-secondary" for="isAdminCheck" style="font-size:.8rem;" data-i18n="admin.is_admin">管理员</label>
         </div>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <button type="submit" class="btn btn-success btn-sm w-100 btn-action">
           <i class="bi bi-person-plus me-1"></i><span data-i18n="admin.create_user_btn">创建用户</span>
         </button>
@@ -466,6 +485,9 @@
           <th class="py-2 text-secondary fw-normal" data-i18n="admin.email_col">邮箱</th>
           <th class="py-2 text-secondary fw-normal" data-i18n="admin.status_col">状态</th>
           <th class="py-2 text-secondary fw-normal" data-i18n="admin.role_col">角色</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.vip_col">VIP</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.retained_col">留存</th>
+          <th class="py-2 text-secondary fw-normal" data-i18n="admin.memory_limit_col">内存上限</th>
           <th class="py-2 text-secondary fw-normal" data-i18n="admin.expiry_col">到期时间</th>
           <th class="py-2 text-secondary fw-normal" data-i18n="admin.registered_at_col">注册时间</th>
           <th class="py-2 text-secondary fw-normal" data-i18n="admin.actions_col">操作</th>
@@ -483,6 +505,52 @@
           <td class="py-2">
             {% if u.is_admin %}<span class="badge bg-warning text-dark" data-i18n="admin.admin_role_label">管理员</span>
             {% else %}<span class="text-secondary" data-i18n="admin.user_role_label">普通用户</span>{% endif %}
+          </td>
+          <td class="py-2">
+            {% set vip_days_left = days_until_vip_expire(u) %}
+            {% if user_vip_active(u) %}
+              {% if u.is_admin %}
+              <span class="badge bg-warning text-dark" data-i18n="admin.vip_admin_included">随管理员权限</span>
+              {% elif vip_days_left == 0 %}
+              <span class="badge bg-info text-dark">{{ u.vip_expire_at.strftime('%Y-%m-%d') }} <span data-i18n="admin.today_label">(今天)</span></span>
+              {% else %}
+              <span class="badge bg-info text-dark">{{ u.vip_expire_at.strftime('%Y-%m-%d') }}</span>
+              {% endif %}
+            {% elif u.vip_expire_at %}
+              <span class="badge bg-secondary" data-i18n="admin.vip_expired">VIP已到期</span>
+            {% else %}
+              <span class="text-secondary" style="font-size:.75rem;" data-i18n="admin.not_vip">非VIP</span>
+            {% endif %}
+            <button class="btn btn-sm btn-link p-0 ms-1" data-i18n-title="admin.set_vip_btn" title="设置VIP"
+                    data-uid="{{ u.id }}"
+                    data-uname="{{ u.username }}"
+                    data-vip="{{ u.vip_expire_at.strftime('%Y-%m-%d') if u.vip_expire_at else '' }}"
+                    onclick="openVipModal(this)">
+              <i class="bi bi-stars" style="color:#d29922;"></i>
+            </button>
+          </td>
+          <td class="py-2">
+            {% if u.is_admin %}
+              <span class="badge bg-warning text-dark" data-i18n="admin.retained_admin_included">管理员保留</span>
+            {% elif u.retained_account %}
+              <span class="badge bg-success" data-i18n="admin.retained_enabled">长期保留</span>
+            {% else %}
+              <span class="text-secondary" style="font-size:.75rem;" data-i18n="admin.retained_disabled">普通清理</span>
+            {% endif %}
+          </td>
+          <td class="py-2">
+            <span class="text-secondary" style="font-size:.75rem;">
+              AB {{ u.astrbot_memory_limit_mb if u.astrbot_memory_limit_mb is not none else default_astrbot_memory_mb }}MB /
+              Bot {{ u.bot_memory_limit_mb if u.bot_memory_limit_mb is not none else default_bot_memory_mb }}MB
+            </span>
+            <button class="btn btn-sm btn-link p-0 ms-1" data-i18n-title="admin.set_memory_limit_btn" title="设置内存上限"
+                    data-uid="{{ u.id }}"
+                    data-uname="{{ u.username }}"
+                    data-astrbot-memory="{{ u.astrbot_memory_limit_mb if u.astrbot_memory_limit_mb is not none else '' }}"
+                    data-bot-memory="{{ u.bot_memory_limit_mb if u.bot_memory_limit_mb is not none else '' }}"
+                    onclick="openMemoryModal(this)">
+              <i class="bi bi-memory" style="color:#3fb950;"></i>
+            </button>
           </td>
           <td class="py-2">
             {% set days_left = days_until_expire(u) %}
@@ -517,6 +585,13 @@
               <form method="post" action="/admin/user/{{ u.id }}/reset_password"
                     onsubmit="return confirm((window.__i18n ? window.__i18n('admin.confirm_reset_pw', '将 {username} 的密码重置为 123456？') : '将 {username} 的密码重置为 123456？').replace('{username}', '{{ u.username }}'))">
                 <button class="btn btn-sm btn-outline-warning btn-action" data-i18n-title="admin.reset_password_btn" title="重置密码"><i class="bi bi-key"></i></button>
+              </form>
+              <form method="post" action="/admin/user/{{ u.id }}/toggle_retained">
+                <button class="btn btn-sm btn-outline-{{ 'success' if u.retained_account else 'secondary' }} btn-action"
+                        data-i18n-title="{{ 'admin.cancel_retained_btn' if u.retained_account else 'admin.set_retained_btn' }}"
+                        title="{{ '取消留存账号' if u.retained_account else '设为留存账号' }}">
+                  <i class="bi bi-archive"></i>
+                </button>
               </form>
               <form method="post" action="/admin/user/{{ u.id }}/delete"
                     onsubmit="return confirm((window.__i18n ? window.__i18n('admin.confirm_delete_user', '确定要注销用户 {username} 及其所有实例？注销后释放名额，用户可重新注册。') : '确定要注销用户 {username} 及其所有实例？注销后释放名额，用户可重新注册。').replace('{username}', '{{ u.username }}'))">
@@ -678,6 +753,58 @@
     </div>
   </div>
 </div>
+
+{# VIP 时间弹窗 #}
+<div class="modal fade" id="vipModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content" style="background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-lg);">
+      <div class="modal-header border-0">
+        <h6 class="modal-title"><span data-i18n="admin.set_vip_title">设置 VIP —</span> <span id="vipUsername"></span></h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-0">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button class="btn btn-sm btn-outline-warning btn-action" onclick="setVip('add30')"><span data-i18n="admin.add_30_days">+30天</span></button>
+          <button class="btn btn-sm btn-outline-warning btn-action" onclick="setVip('add90')"><span data-i18n="admin.add_90_days">+90天</span></button>
+          <button class="btn btn-sm btn-outline-warning btn-action" onclick="setVip('add365')"><span data-i18n="admin.add_1_year">+1年</span></button>
+          <button class="btn btn-sm btn-outline-danger btn-action" onclick="setVip('clear')"><span data-i18n="admin.clear_vip">取消VIP</span></button>
+        </div>
+        <label class="text-secondary" style="font-size:.8rem;" data-i18n="admin.vip_until_date">VIP到期日期</label>
+        <div class="d-flex gap-2 mt-1">
+          <input type="date" id="vipDate" class="form-control form-control-sm"
+                 style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+          <button class="btn btn-sm btn-success btn-action" onclick="setVip('set')"><span data-i18n="admin.set_btn">设置</span></button>
+        </div>
+        <div id="vipMsg" class="mt-2 text-secondary" style="font-size:.8rem;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+{# 内存上限弹窗 #}
+<div class="modal fade" id="memoryModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content" style="background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-lg);">
+      <div class="modal-header border-0">
+        <h6 class="modal-title"><span data-i18n="admin.set_memory_limit_title">设置内存上限 —</span> <span id="memoryUsername"></span></h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-0">
+        <label class="text-secondary" style="font-size:.8rem;" data-i18n="admin.astrbot_memory_limit">AstrBot 内存上限（MB）</label>
+        <input type="number" id="astrbotMemoryLimit" class="form-control form-control-sm mb-2" min="0" max="262144"
+               placeholder="{{ default_astrbot_memory_mb }}"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <label class="text-secondary" style="font-size:.8rem;" data-i18n="admin.bot_memory_limit">NapCat/LLOneBot 内存上限（MB）</label>
+        <input type="number" id="botMemoryLimit" class="form-control form-control-sm mb-2" min="0" max="262144"
+               placeholder="{{ default_bot_memory_mb }}"
+               style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+        <div class="text-secondary mb-3" style="font-size:.75rem;" data-i18n="admin.memory_limit_hint">留空使用默认值，填 0 表示不限制。运行中容器会尝试立即热更新，失败时下次重建生效。</div>
+        <button class="btn btn-sm btn-success btn-action w-100" onclick="setMemoryLimits()"><span data-i18n="admin.save_memory_limit">保存内存上限</span></button>
+        <div id="memoryMsg" class="mt-2 text-secondary" style="font-size:.8rem;"></div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -840,6 +967,58 @@ async function setExpire(action){
   if(d.ok){
     document.getElementById('expireMsg').innerHTML=
       '<span class="text-success">✅ ' + __i('admin.expire_updated', '已更新：{date}，刷新页面生效').replace('{date}', (d.expire_at||__i('admin.permanent_label', '永久'))) + '</span>';
+  }
+}
+
+let _vipUserId=null;
+function openVipModal(btn){
+  _vipUserId = btn.dataset.uid;
+  document.getElementById('vipUsername').textContent = btn.dataset.uname;
+  document.getElementById('vipDate').value = btn.dataset.vip || '';
+  document.getElementById('vipMsg').textContent = '';
+  new bootstrap.Modal(document.getElementById('vipModal')).show();
+}
+async function setVip(action){
+  if(!_vipUserId)return;
+  const body={action};
+  if(action==='set') body.date=document.getElementById('vipDate').value;
+  const r=await fetch(`/admin/user/${_vipUserId}/set_vip`,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body),
+  });
+  const d=await r.json();
+  if(d.ok){
+    document.getElementById('vipMsg').innerHTML=
+      '<span class="text-success">OK ' + __i('admin.vip_updated', '已更新：{date}，刷新页面生效').replace('{date}', (d.vip_expire_at||__i('admin.not_vip', '非VIP'))) + '</span>';
+  }else{
+    document.getElementById('vipMsg').innerHTML='<span class="text-danger">' + escapeHtml(d.error || __i('toast.operation_failed', '操作失败')) + '</span>';
+  }
+}
+
+let _memoryUserId=null;
+function openMemoryModal(btn){
+  _memoryUserId = btn.dataset.uid;
+  document.getElementById('memoryUsername').textContent = btn.dataset.uname;
+  document.getElementById('astrbotMemoryLimit').value = btn.dataset.astrbotMemory || '';
+  document.getElementById('botMemoryLimit').value = btn.dataset.botMemory || '';
+  document.getElementById('memoryMsg').textContent = '';
+  new bootstrap.Modal(document.getElementById('memoryModal')).show();
+}
+async function setMemoryLimits(){
+  if(!_memoryUserId)return;
+  const body={
+    astrbot_memory_limit_mb: document.getElementById('astrbotMemoryLimit').value.trim(),
+    bot_memory_limit_mb: document.getElementById('botMemoryLimit').value.trim(),
+  };
+  const r=await fetch(`/admin/user/${_memoryUserId}/set_memory_limits`,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body),
+  });
+  const d=await r.json();
+  if(d.ok){
+    document.getElementById('memoryMsg').innerHTML='<span class="text-success">OK ' + __i('admin.memory_limit_saved', '内存上限已保存，刷新页面生效') + '</span>';
+  }else{
+    document.getElementById('memoryMsg').innerHTML='<span class="text-danger">' + escapeHtml(d.error || __i('toast.operation_failed', '操作失败')) + '</span>';
   }
 }
 </script>

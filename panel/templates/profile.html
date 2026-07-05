@@ -35,6 +35,24 @@
           <span class="tag-pill" style="background:var(--border-default);" data-i18n="profile.normal_user">普通用户</span>
           {% endif %}
         </div>
+        <div class="d-flex justify-content-between align-items-center py-2" style="font-size:.875rem; border-top:1px solid var(--border-default);">
+          <span class="text-secondary"><i class="bi bi-stars me-2 opacity-75"></i><span data-i18n="profile.vip_status">VIP状态</span></span>
+          <span class="text-end">
+            {% if user_vip_active(user) %}
+              <span class="tag-pill" style="background:var(--amber);color:var(--bg-default);" data-i18n="profile.vip_active">VIP</span>
+              {% if user.is_admin %}
+              <small class="text-secondary ms-2" data-i18n="profile.vip_admin_included">随管理员权限生效</small>
+              {% elif user.vip_expire_at %}
+              <small class="text-secondary ms-2"><span data-i18n="profile.vip_until">到期</span> {{ user.vip_expire_at.strftime('%Y-%m-%d') }}</small>
+              {% endif %}
+            {% else %}
+              <span class="tag-pill" style="background:var(--border-default);" data-i18n="profile.not_vip">非VIP</span>
+              {% if user.vip_expire_at %}
+              <small class="text-secondary ms-2"><span data-i18n="profile.vip_expired_at">已于</span> {{ user.vip_expire_at.strftime('%Y-%m-%d') }} <span data-i18n="profile.expired">到期</span></small>
+              {% endif %}
+            {% endif %}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -81,6 +99,19 @@
             <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="profile.confirm_new_password">确认新密码</label>
             <input type="password" class="form-control input-enhanced" name="new_password2" required
                    style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="profile.captcha_label">图形验证码</label>
+            <div class="d-flex gap-2 align-items-stretch">
+              <input type="text" class="form-control input-enhanced" id="emailCaptchaInput" maxlength="6" autocomplete="off"
+                     data-i18n-placeholder="profile.captcha_placeholder" placeholder="输入图中字符"
+                     style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm); text-transform:uppercase;">
+              <img id="emailCaptchaImage" alt="captcha" role="button" onclick="refreshEmailCaptcha()"
+                   style="width:168px;height:54px;border-radius:var(--radius-sm);border:1px solid var(--border-default);cursor:pointer;background:#f6f8fa;">
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-action" onclick="refreshEmailCaptcha()" title="刷新"
+                      data-i18n-title="profile.captcha_refresh"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+            <p class="text-secondary mt-1" style="font-size:.72rem;" data-i18n="profile.captcha_hint">发送邮件前请输入图中字符，不区分大小写</p>
           </div>
           <div class="mb-3">
             <label class="form-label text-secondary" style="font-size:.8rem;" data-i18n="profile.email_code" data-i18n-params='{"email":"{{ user.email }}"}'>邮箱验证码（将发送至 {{ user.email }}）</label>
@@ -195,8 +226,23 @@ loadInviteCodes();
 </script>
 <script>
 let _cd = 0;
+const _emailCaptchaId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('cap_' + Date.now() + '_' + Math.random().toString(16).slice(2));
+
+function refreshEmailCaptcha() {
+  const input = document.getElementById('emailCaptchaInput');
+  const img = document.getElementById('emailCaptchaImage');
+  if (input) input.value = '';
+  if (img) img.src = '/api/email/captcha/' + encodeURIComponent(_emailCaptchaId) + '?purpose=change_password&t=' + Date.now();
+}
+
 async function sendCode() {
   if (_cd > 0) return;
+  const captchaInput = document.getElementById('emailCaptchaInput');
+  if (!captchaInput || !captchaInput.value.trim()) {
+    alert(__i('profile.captcha_required', '请先输入图形验证码'));
+    captchaInput && captchaInput.focus();
+    return;
+  }
   const btn = document.getElementById('sendCodeBtn');
   btn.disabled = true;
 
@@ -204,9 +250,12 @@ async function sendCode() {
     const fd = new FormData();
     fd.append('email', '{{ user.email }}');
     fd.append('purpose', 'change_password');
+    fd.append('captcha_id', _emailCaptchaId);
+    fd.append('captcha_code', captchaInput.value.trim());
     const r = await fetch('/api/email/send-code', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.ok) {
+      refreshEmailCaptcha();
       _cd = 60;
       btn.innerHTML = _cd + 's ' + __i('register.resend_countdown', '秒后重发');
       btn.classList.remove('btn-outline-info');
@@ -224,12 +273,30 @@ async function sendCode() {
       }, 1000);
     } else {
       alert(d.error || __i('register.send_failed', '发送失败'));
-      btn.disabled = false;
+      refreshEmailCaptcha();
+      if (d.retry_after && Number(d.retry_after) > 0) {
+        _cd = Number(d.retry_after);
+        btn.innerHTML = _cd + 's ' + __i('register.resend_countdown', '秒后重发');
+        const t = setInterval(() => {
+          _cd--;
+          btn.innerHTML = _cd + 's ' + __i('register.resend_countdown', '秒后重发');
+          if (_cd <= 0) {
+            clearInterval(t);
+            btn.innerHTML = __i('profile.send_code_btn', '发送验证码');
+            btn.disabled = false;
+          }
+        }, 1000);
+      } else {
+        btn.disabled = false;
+      }
     }
   } catch(e) {
     alert(__i('profile.invite_network_error', '网络错误'));
+    refreshEmailCaptcha();
     btn.disabled = false;
   }
 }
+
+refreshEmailCaptcha();
 </script>
 {% endblock %}

@@ -156,6 +156,69 @@
     .dashboard-step {
       min-height: auto;
     }
+    #extraPortsCard .card-header small {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: .35rem;
+      min-width: 0;
+    }
+    #extraPortsCard .card-body {
+      padding: .85rem;
+    }
+    #extraPortsCard .port-row-head {
+      display: none;
+    }
+    #extraPortsCard .port-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .55rem !important;
+      padding: .65rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      background: var(--bg-card);
+    }
+    #extraPortsCard .port-row > [class*="col-"] {
+      width: auto;
+      max-width: none;
+      flex: none;
+      padding: 0;
+    }
+    #extraPortsCard .port-row > [class*="col-"]::before {
+      display: block;
+      margin-bottom: .25rem;
+      color: var(--text-secondary);
+      font-size: .68rem;
+      line-height: 1;
+    }
+    #extraPortsCard .port-row > [class*="col-"]:nth-child(1)::before { content: "服务"; }
+    #extraPortsCard .port-row > [class*="col-"]:nth-child(2)::before { content: "容器端口"; }
+    #extraPortsCard .port-row > [class*="col-"]:nth-child(3)::before { content: "宿主端口"; }
+    #extraPortsCard .port-row > [class*="col-"]:nth-child(4)::before { content: "备注"; }
+    #extraPortsCard .port-row > [class*="col-"]:last-child {
+      grid-column: 1 / -1;
+    }
+    #extraPortsCard .port-row > [class*="col-"]:last-child::before {
+      content: "";
+      display: none;
+    }
+    #extraPortsCard .port-row select,
+    #extraPortsCard .port-row input {
+      width: 100%;
+      min-width: 0;
+      text-overflow: ellipsis;
+    }
+    #extraPortsCard .port-row .btn {
+      width: 100%;
+    }
+    #extraPortsCard .table-responsive {
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+    }
+    #extraPortsCard code {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
   }
 </style>
 {% endblock %}
@@ -654,7 +717,7 @@
       </div>
 
       {# 列标题 #}
-      <div class="row g-2 mb-1 px-1" style="font-size:.72rem; color:var(--text-secondary);">
+      <div class="row g-2 mb-1 px-1 port-row-head" style="font-size:.72rem; color:var(--text-secondary);">
         <div class="col-3"><span data-i18n="dashboard.service">服务</span></div>
         <div class="col-3"><span data-i18n="dashboard.container_port">容器内端口</span></div>
         <div class="col-3"><span data-i18n="dashboard.host_port">宿主机端口</span></div>
@@ -813,12 +876,6 @@
       <form method="post" action="/api/instance/restart">
         <button class="btn btn-sm btn-secondary btn-action"><i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="dashboard.restart_all">全部重启</span></button>
       </form>
-      {% if bot_type == 'napcat' %}
-      <button type="button" class="btn btn-sm btn-outline-success btn-action" id="autoConfigBtn" onclick="autoConfigNapcat()">
-        <i class="bi bi-magic me-1"></i><span data-i18n="dashboard.auto_config_connect">一键配置连接（Beta）</span>
-      </button>
-      {% endif %}
-
       {# 更新按钮组 #}
       <div class="dropdown">
         <button class="btn btn-sm btn-info btn-action dropdown-toggle" data-bs-toggle="dropdown">
@@ -965,29 +1022,6 @@ async function fetchStats(){
   }catch(e){}
 }
 fetchStats(); setInterval(fetchStats,5000);
-
-async function autoConfigNapcat(){
-  const btn=document.getElementById('autoConfigBtn');
-  if(!btn)return;
-  if(!confirm(__i('dashboard.auto_config_confirm', '将自动覆写 AstrBot 与 NapCat 的反向 WebSocket 配置，并重启两个容器使配置生效。确定继续？')))return;
-  const old=btn.innerHTML;
-  btn.disabled=true;
-  btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>'+__i('dashboard.auto_config_working', '配置中...');
-  try{
-    const resp=await fetch('/api/instance/auto_config',{method:'POST'});
-    const data=await resp.json();
-    if(data.ok){
-      alert(__i('dashboard.auto_config_success', '配置完成，已重启 AstrBot 与 NapCat。\nWS 地址：{ws_url}').replace('{ws_url}', data.ws_url));
-    }else{
-      alert(data.error||__i('dashboard.auto_config_failed', '配置失败'));
-    }
-  }catch(e){
-    alert(__i('dashboard.auto_config_failed', '配置失败')+'：'+e.message);
-  }finally{
-    btn.disabled=false;
-    btn.innerHTML=old;
-  }
-}
 
 // 实例创建
 let _pt=null;
@@ -1252,4 +1286,3 @@ async function startUpdate(target, skipConfirm=false){
 }
 </script>
 {% endblock %}
-

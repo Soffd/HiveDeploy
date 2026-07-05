@@ -2,6 +2,9 @@
   <li><a href="/dashboard" class="nav-link {{ 'active' if request.url.path == '/dashboard' else '' }}">
     <i class="bi bi-speedometer2 me-2"></i><span data-i18n="sidebar.dashboard">控制台</span>
   </a></li>
+  <li><a href="/tools" class="nav-link {{ 'active' if request.url.path == '/tools' else '' }}">
+    <i class="bi bi-tools me-2"></i><span data-i18n="sidebar.quick_tools">快捷工具</span>
+  </a></li>
   <li class="mt-2 px-2"><small class="text-secondary text-uppercase" style="font-size:.7rem;" data-i18n="sidebar.logs_terminal">日志 & 终端</small></li>
   <li><a href="/logs/astrbot" class="nav-link {{ 'active' if '/logs/astrbot' in request.url.path else '' }}">
     <i class="bi bi-terminal me-2"></i><span data-i18n="sidebar.astrbot_logs">AstrBot 日志</span>
@@ -45,6 +48,12 @@
   </a></li>
   <li><a href="/admin/announcements" class="nav-link {{ 'active' if '/admin/announcements' in request.url.path else '' }}">
     <i class="bi bi-megaphone me-2"></i><span data-i18n="sidebar.announcement_settings">公告设置</span>
+  </a></li>
+  <li><a href="/admin/messages" class="nav-link {{ 'active' if '/admin/messages' in request.url.path else '' }}">
+    <i class="bi bi-envelope-paper me-2"></i><span data-i18n="sidebar.user_messages">站内信</span>
+  </a></li>
+  <li><a href="/admin/tools" class="nav-link {{ 'active' if request.url.path == '/admin/tools' else '' }}">
+    <i class="bi bi-tools me-2"></i><span data-i18n="sidebar.quick_tool_settings">快捷工具设置</span>
   </a></li>
   <li><a href="/admin/renewals" class="nav-link {{ 'active' if '/admin/renewals' in request.url.path else '' }}">
     <i class="bi bi-list-check me-2"></i><span data-i18n="sidebar.renewal_records">续期记录</span>

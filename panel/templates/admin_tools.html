@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title_i18n %}admin_tools.title{% endblock %}{% block title %}快捷工具设置 - HiveDeploy{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0 fw-semibold">
+      <i class="bi bi-tools me-2"></i><span data-i18n="admin_tools.heading">快捷工具设置</span>
+    </h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.875rem;" data-i18n="admin_tools.subtitle">集中维护快捷工具的权限和展示角标。</p>
+  </div>
+  <a href="/tools" class="btn btn-sm btn-outline-secondary btn-action">
+    <i class="bi bi-box-arrow-up-right me-1"></i><span data-i18n="admin_tools.open_user_tools">打开快捷工具</span>
+  </a>
+</div>
+
+{% if request.query_params.get('saved') %}
+<div class="alert alert-success py-2 mb-3" style="font-size:.875rem;">
+  <i class="bi bi-check-circle me-1"></i><span data-i18n="admin_tools.saved">快捷工具设置已保存</span>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+    <div class="hero-icon" style="width:32px;height:32px;font-size:1rem; background:rgba(210,153,34,0.08); color:var(--amber); border-color:rgba(210,153,34,0.2);">
+      <i class="bi bi-sliders"></i>
+    </div>
+    <small class="fw-semibold text-secondary" data-i18n="admin_tools.tool_rules">工具规则</small>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/admin/tools/settings">
+      <div class="table-responsive">
+        <table class="table table-dark table-hover mb-0" style="font-size:.875rem;">
+          <thead>
+            <tr>
+              <th class="text-secondary fw-normal" data-i18n="admin_tools.tool_name">工具</th>
+              <th class="text-secondary fw-normal" data-i18n="admin_tools.access">权限</th>
+              <th class="text-secondary fw-normal" data-i18n="admin_tools.badge">角标</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="align-middle">
+                <div class="fw-semibold" data-i18n="tools.astrbot_reset_title">重置 AstrBot 面板密码</div>
+                <div class="text-secondary" style="font-size:.78rem;" data-i18n="tools.astrbot_reset_desc_short">清除面板登录凭据并重启 AstrBot，新密码在 AstrBot 日志中查看。</div>
+              </td>
+              <td class="align-middle" style="min-width:160px;">
+                <select class="form-select form-select-sm" name="reset_astrbot_password_access"
+                        style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+                  <option value="free" {% if reset_astrbot_password_access == 'free' %}selected{% endif %} data-i18n="admin.tool_access_free">免费</option>
+                  <option value="limited" {% if reset_astrbot_password_access == 'limited' %}selected{% endif %} data-i18n="admin.tool_access_limited">限免</option>
+                  <option value="vip" {% if reset_astrbot_password_access == 'vip' %}selected{% endif %} data-i18n="admin.tool_access_vip">VIP专属</option>
+                </select>
+              </td>
+              <td class="align-middle" style="min-width:180px;">
+                <input class="form-control form-control-sm" name="reset_astrbot_password_badge" maxlength="24"
+                       value="{{ reset_astrbot_password_badge }}" data-i18n-placeholder="admin_tools.badge_placeholder" placeholder="留空不显示"
+                       style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+              </td>
+            </tr>
+            <tr>
+              <td class="align-middle">
+                <div class="fw-semibold" data-i18n="tools.auto_config_title">一键配置连接</div>
+                <div class="text-secondary" style="font-size:.78rem;" data-i18n="tools.auto_config_desc_short">自动写入 AstrBot 与 NapCat 反向 WebSocket 配置并重启容器。</div>
+              </td>
+              <td class="align-middle">
+                <select class="form-select form-select-sm" name="auto_config_access"
+                        style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+                  <option value="free" {% if auto_config_access == 'free' %}selected{% endif %} data-i18n="admin.tool_access_free">免费</option>
+                  <option value="limited" {% if auto_config_access == 'limited' %}selected{% endif %} data-i18n="admin.tool_access_limited">限免</option>
+                  <option value="vip" {% if auto_config_access == 'vip' %}selected{% endif %} data-i18n="admin.tool_access_vip">VIP专属</option>
+                </select>
+              </td>
+              <td class="align-middle">
+                <input class="form-control form-control-sm" name="auto_config_badge" maxlength="24"
+                       value="{{ auto_config_badge }}" data-i18n-placeholder="admin_tools.badge_placeholder" placeholder="留空不显示"
+                       style="background:var(--bg-input); border-color:var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm);">
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-end mt-3">
+        <button class="btn btn-info btn-sm text-white btn-action">
+          <i class="bi bi-floppy me-1"></i><span data-i18n="admin.save_tool_permissions">保存权限设置</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

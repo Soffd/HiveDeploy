@@ -1,8 +1,16 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-bs-theme="dark">
+<html lang="zh-CN" data-bs-theme="dark" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    (function () {
+      const mode = localStorage.getItem('hive_theme_mode') || 'dark';
+      const isLight = mode === 'light' || (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+      document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-bs-theme', isLight ? 'light' : 'dark');
+    })();
+  </script>
   <title data-i18n="login.title">登录 — HiveDeploy</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
@@ -257,8 +265,12 @@
       .brand { font-size: 1.4rem; }
     }
   </style>
+  <link rel="stylesheet" href="/static/css/auth-theme.css">
+  <script src="/static/i18n/i18n.js" defer></script>
+  <script src="/static/js/auth-theme.js" defer></script>
 </head>
 <body>
+<div id="authThemeSwitcher"></div>
 <div class="auth-card">
   <div class="text-center mb-4" style="animation: fadeInUp 0.4s ease-out;">
     <div class="brand">

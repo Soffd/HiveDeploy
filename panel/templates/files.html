@@ -24,6 +24,26 @@
   --fm-folder-bg: rgba(210,153,34,.12);
   --fm-overlay: rgba(0,0,0,.55);
 }
+html[data-theme="light"] {
+  --fm-bg: #ffffff;
+  --fm-card: #f6f8fa;
+  --fm-border: #d0d7de;
+  --fm-hover: rgba(9,105,218,.07);
+  --fm-active: rgba(9,105,218,.1);
+  --fm-selected: rgba(9,105,218,.12);
+  --fm-selected-strong: rgba(9,105,218,.22);
+  --fm-accent: #0969da;
+  --fm-accent-text: #0969da;
+  --fm-text: #1f2328;
+  --fm-text-dim: #57606a;
+  --fm-text-muted: #6e7781;
+  --fm-danger: #cf222e;
+  --fm-success: #1a7f37;
+  --fm-warning: #9a6700;
+  --fm-folder: #9a6700;
+  --fm-folder-bg: rgba(154,103,0,.1);
+  --fm-overlay: rgba(31,35,40,.28);
+}
 
 /* ═══ Layout ═══ */
 .fm-wrap {
@@ -31,7 +51,10 @@
   gap: 0;
   height: calc(100vh - 145px);
   min-height: 480px;
+  box-shadow: 0 18px 45px rgba(0,0,0,.16);
+  border-radius: 10px;
 }
+html[data-theme="light"] .fm-wrap { box-shadow: 0 16px 38px rgba(140,149,159,.18); }
 
 /* ═══ Sidebar ═══ */
 .fm-sidebar {
@@ -66,8 +89,10 @@
 /* ═══ Toolbar ═══ */
 .fm-toolbar {
   display: flex; align-items: center; gap: 4px;
-  padding: 6px 10px; background: var(--fm-card);
+  padding: 7px 10px; background: var(--fm-card);
   border-bottom: 1px solid var(--fm-border); flex-shrink: 0; flex-wrap: wrap;
+  transition: max-height .2s ease, padding .2s ease, opacity .16s ease;
+  overflow: hidden;
 }
 .fm-tb-btn {
   display: inline-flex; align-items: center; gap: 4px;
@@ -151,6 +176,100 @@
   padding: 5px 12px; font-size: .72rem; color: var(--fm-text-dim);
   background: var(--fm-card); border-top: 1px solid var(--fm-border); flex-shrink: 0;
 }
+.fm-mobile-dock,
+.fm-mobile-fab {
+  display: none;
+}
+.fm-mobile-dock {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 900;
+  background: rgba(22,27,34,.94);
+  border: 1px solid var(--fm-border);
+  border-radius: 18px;
+  box-shadow: 0 18px 42px rgba(0,0,0,.38);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 7px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(120%) scale(.98);
+  transform-origin: bottom right;
+  transition: opacity .18s ease, transform .22s cubic-bezier(.2,.8,.2,1);
+}
+html[data-theme="light"] .fm-mobile-dock {
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 16px 36px rgba(140,149,159,.28);
+}
+.fm-mobile-dock.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+.fm-dock-btn {
+  border: 0;
+  background: transparent;
+  color: var(--fm-text-dim);
+  border-radius: 12px;
+  min-height: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: .66rem;
+}
+.fm-dock-btn i { font-size: 1.05rem; }
+.fm-dock-btn:active,
+.fm-dock-btn:hover {
+  color: var(--fm-accent-text);
+  background: var(--fm-active);
+}
+.fm-dock-btn:disabled { opacity: .35; }
+.fm-mobile-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 78px;
+  z-index: 901;
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  border: 0;
+  background: var(--fm-accent);
+  color: #fff;
+  box-shadow: 0 16px 30px rgba(31,111,235,.36);
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  transition: bottom .22s cubic-bezier(.2,.8,.2,1), transform .22s ease, box-shadow .18s ease;
+}
+.fm-mobile-fab.dock-open {
+  bottom: 82px;
+  transform: rotate(45deg);
+  box-shadow: 0 18px 34px rgba(31,111,235,.42);
+}
+.fm-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.fm-create-option {
+  border: 1px solid var(--fm-border);
+  background: var(--fm-bg);
+  color: var(--fm-text);
+  border-radius: 12px;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+.fm-create-option i { font-size: 1.45rem; color: var(--fm-accent-text); }
+.fm-create-option:hover { background: var(--fm-hover); border-color: var(--fm-accent); }
 
 /* ═══ Context Menu ═══ */
 .fm-cmenu {
@@ -159,6 +278,10 @@
   background: #21262d; border: 1px solid var(--fm-border);
   border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,.5);
   padding: 6px; font-size: .8rem;
+}
+html[data-theme="light"] .fm-cmenu {
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(140,149,159,.28);
 }
 .fm-cmenu.show { display: block; }
 .fm-cmenu-item {
@@ -184,6 +307,10 @@
   background: #1c2128; border: 1px solid var(--fm-border);
   border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6);
   min-width: 360px; max-width: 520px; width: auto;
+}
+html[data-theme="light"] .fm-modal {
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(140,149,159,.28);
 }
 .fm-modal-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -234,6 +361,9 @@
   border-radius: 10px; padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,.4);
   font-size: .78rem; display: none; min-width: 200px;
 }
+html[data-theme="light"] .fm-upload-progress {
+  background: #ffffff;
+}
 .fm-upload-progress.show { display: block; }
 .fm-upload-progress .prog-title { font-weight: 600; margin-bottom: 6px; }
 .fm-upload-progress .prog-bar-bg { height: 4px; background: var(--fm-border); border-radius: 2px; margin: 6px 0; }
@@ -278,7 +408,40 @@
 /* ═══ Responsive / Mobile ═══ */
 @media (max-width: 768px) {
   .fm-sidebar { display: none; }
-  .fm-wrap { height: calc(100vh - 120px); }
+  .fm-page-header {
+    align-items: flex-start !important;
+    gap: .6rem;
+    flex-direction: column;
+  }
+  .fm-page-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .45rem;
+  }
+  .fm-page-actions .btn {
+    width: 100%;
+    margin-left: 0 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fm-wrap {
+    height: calc(100vh - 182px);
+    min-height: 420px;
+    border-radius: 16px;
+    box-shadow: none;
+  }
+  .fm-main {
+    border-left: 1px solid var(--fm-border);
+    border-radius: 16px;
+  }
+  .fm-toolbar.fm-toolbar-hidden {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-bottom-width: 0;
+    opacity: 0;
+  }
 
   /* ── 表格改为 grid 双行布局（类 MT 管理器）── */
   .fm-table, .fm-table thead, .fm-table tbody, .fm-table tr {
@@ -287,14 +450,21 @@
   .fm-table thead { display: none; }
 
   /* 每行：grid 布局，第1行=名称，第2行=日期+大小 */
+  .fm-table-wrap {
+    padding: 7px 7px 78px;
+    background: var(--fm-bg);
+  }
   .fm-table tr {
     display: grid;
-    grid-template-columns: 28px 1fr auto;
+    grid-template-columns: 32px 1fr auto;
     grid-template-rows: auto auto;
-    padding: 10px 10px;
+    padding: 11px 12px;
+    margin-bottom: 7px;
     row-gap: 3px;
     column-gap: 8px;
-    border-bottom: 1px solid var(--fm-border);
+    border: 1px solid var(--fm-border);
+    border-radius: 13px;
+    background: var(--fm-card);
     transition: background .10s, box-shadow .10s;
     cursor: pointer;
     position: relative;
@@ -307,7 +477,8 @@
   /* ── 选中行：颜色覆盖（无角标）── */
   .fm-table tr.selected {
     background: var(--fm-selected-strong) !important;
-    box-shadow: inset 3px 0 0 var(--fm-accent);
+    border-color: var(--fm-accent);
+    box-shadow: inset 3px 0 0 var(--fm-accent), 0 8px 18px rgba(31,111,235,.14);
   }
   .fm-table tr.selected:hover {
     background: rgba(31,111,235,.42) !important;
@@ -340,13 +511,13 @@
   /* 名称列：第1行，跨全部列 */
   .fm-table td.name-cell {
     grid-row: 1; grid-column: 1 / 4;
-    display: flex; align-items: center; gap: 7px;
-    font-size: .82rem; font-weight: 500; color: var(--fm-text);
+    display: flex; align-items: center; gap: 10px;
+    font-size: .9rem; font-weight: 600; color: var(--fm-text);
     position: relative;
     overflow: hidden;
   }
   .fm-table td.name-cell .fm-icon {
-    flex-shrink: 0; font-size: 1.05rem; width: 20px; text-align: center;
+    flex-shrink: 0; font-size: 1.18rem; width: 24px; text-align: center;
   }
   .fm-table td.name-cell .name-text {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -355,13 +526,13 @@
   /* 日期列：第2行左侧 */
   .fm-table td.col-date {
     grid-row: 2; grid-column: 2;
-    font-size: .68rem; color: var(--fm-text-dim);
+    font-size: .72rem; color: var(--fm-text-dim);
   }
 
   /* 大小列：第2行右侧 */
   .fm-table td.col-size {
     grid-row: 2; grid-column: 3;
-    font-size: .68rem; color: var(--fm-text-dim);
+    font-size: .72rem; color: var(--fm-text-dim);
     text-align: right;
   }
 
@@ -374,6 +545,15 @@
   .fm-tb-sep { margin: 0 2px; }
   .fm-toolbar .fm-tb-btn > i { font-size: .75rem; }
   .fm-toolbar .fm-tb-btn span { display: none; }
+  .fm-statusbar { display: none; }
+  .fm-mobile-dock { display: grid; }
+  .fm-mobile-fab { display: inline-flex; }
+  .fm-modal {
+    min-width: 0;
+    width: calc(100vw - 28px);
+    max-width: 420px;
+    border-radius: 16px;
+  }
 
   /* ── 多选工具栏（顶部横条，MT管理器风格）── */
   .fm-swipe-toolbar {
@@ -385,6 +565,9 @@
     animation: fmSlideDown .18s ease;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+  html[data-theme="light"] .fm-swipe-toolbar {
+    background: #ddf4ff;
   }
   @keyframes fmSlideDown {
     from { opacity: 0; transform: translateY(-4px); }
@@ -403,6 +586,14 @@
     background: rgba(255,255,255,.06); color: var(--fm-text-dim);
     border: 1px solid var(--fm-border);
     padding: 6px 14px; font-weight: 500;
+  }
+  html[data-theme="light"] .fm-swipe-toolbar .fm-tb-btn.exit-btn {
+    background: rgba(9,105,218,.08);
+    color: var(--fm-text-dim);
+  }
+  html[data-theme="light"] .fm-swipe-toolbar .fm-tb-btn.exit-btn:hover {
+    background: rgba(9,105,218,.14);
+    color: var(--fm-text);
   }
   .fm-swipe-toolbar .fm-tb-btn.exit-btn:hover {
     background: rgba(255,255,255,.14); color: #fff;
@@ -433,12 +624,12 @@
 {% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-2">
+<div class="fm-page-header d-flex align-items-center justify-content-between mb-2">
   <h5 class="mb-0">
     <i class="bi bi-folder2-open me-2"></i><span data-i18n="files.file_management">文件管理</span>
     <span class="badge bg-primary ms-2 text-uppercase">{{ service }}</span>
   </h5>
-  <div>
+  <div class="fm-page-actions">
     <a href="/dashboard" class="btn btn-sm btn-outline-light"><i class="bi bi-house"></i> <span data-i18n="files.dashboard_btn">仪表盘</span></a>
     <a href="/logs/{{ service }}" class="btn btn-sm btn-outline-light ms-2"><i class="bi bi-journal-text"></i> <span data-i18n="files.logs_btn">日志</span></a>
     <a href="/terminal/{{ service }}" class="btn btn-sm btn-outline-light ms-2"><i class="bi bi-terminal"></i> <span data-i18n="files.terminal_btn">终端</span></a>
@@ -461,9 +652,27 @@
   <!-- 左侧导航树 -->
   <div class="fm-sidebar" id="fmSidebar">
     <div class="fm-sidebar-title"><span data-i18n="files.quick_access">快速访问</span></div>
+    {% set shortcut_i18n = {
+      '/AstrBot/data/plugins': 'files.shortcut_plugins',
+      '/AstrBot/data/config': 'files.shortcut_config',
+      '/AstrBot/data': 'files.shortcut_data',
+      '/AstrBot/astrbot': 'files.shortcut_core',
+      '/AstrBot/data/logs': 'files.shortcut_logs',
+      '/AstrBot': 'files.shortcut_root',
+      '/app/napcat/config': 'files.shortcut_napcat_config',
+      '/app': 'files.shortcut_app',
+      '/root/.config/QQ': 'files.shortcut_qq_data',
+      '/root/.config/QQ/config': 'files.shortcut_llonebot_config',
+      '/': 'files.shortcut_root'
+    } %}
     {% for label, path in shortcuts.items() %}
     <a class="sc-btn {% if current_path == path %}on{% endif %}" href="/files/{{ service }}?path={{ path }}">
-      <i class="bi bi-folder2"></i>{{ label }}
+      <i class="bi bi-folder2"></i>
+      {% if shortcut_i18n.get(path) %}
+      <span data-i18n="{{ shortcut_i18n.get(path) }}">{{ label }}</span>
+      {% else %}
+      <span>{{ label }}</span>
+      {% endif %}
     </a>
     {% endfor %}
     <div class="fm-sidebar-title mt-2"><span data-i18n="files.cross_service">跨服务跳转</span></div>
@@ -491,6 +700,7 @@
       <button class="fm-tb-btn" data-i18n-title="files.go_up_title" title="向上一级 (Alt+↑)" onclick="goUp()"><i class="bi bi-arrow-up"></i></button>
       <div class="fm-tb-sep"></div>
       <button class="fm-tb-btn primary" data-i18n-title="files.create_folder" title="新建文件夹 (Ctrl+N)" onclick="showNewFolderDialog()"><i class="bi bi-folder-plus"></i> <span data-i18n="files.create_folder">新建文件夹</span></button>
+      <button class="fm-tb-btn primary" data-i18n-title="files.new_file" title="新建文件" onclick="showNewFileDialog()"><i class="bi bi-file-earmark-plus"></i> <span data-i18n="files.new_file">新建文件</span></button>
       <button class="fm-tb-btn" data-i18n-title="files.upload_title" title="上传文件" onclick="document.getElementById('fmUploadInput').click()"><i class="bi bi-upload"></i> <span data-i18n="files.upload_text">上传</span></button>
       <div class="fm-tb-sep"></div>
       <button class="fm-tb-btn" id="btnCut" disabled data-i18n-title="files.cut_title" title="剪切 (Ctrl+X)" onclick="cutSelected()"><i class="bi bi-scissors"></i> <span data-i18n="files.cut">剪切</span></button>
@@ -510,6 +720,7 @@
       <button class="fm-tb-btn" data-i18n-title="files.select_all" title="全选" onclick="selectAllItems()"><i class="bi bi-check-all"></i> <span data-i18n="files.select_all">全选</span></button>
       <button class="fm-tb-btn" data-i18n-title="files.cut" title="剪切" onclick="cutSelected()"><i class="bi bi-scissors"></i></button>
       <button class="fm-tb-btn" data-i18n-title="files.copy" title="复制" onclick="copySelected()"><i class="bi bi-copy"></i></button>
+      <button class="fm-tb-btn" data-i18n-title="files.rename" title="重命名" onclick="showRenameDialog()"><i class="bi bi-pencil"></i></button>
       <button class="fm-tb-btn danger" id="btnSwipeDelete" disabled data-i18n-title="files.delete" title="删除" onclick="showDeleteConfirm()"><i class="bi bi-trash"></i></button>
     </div>
 
@@ -541,6 +752,27 @@
     <div class="fm-statusbar">
       <span id="fmStatusLeft"></span>
       <span id="fmStatusRight"></span>
+    </div>
+
+    <button class="fm-mobile-fab" id="fmMobileFab" type="button" onclick="toggleMobileDock()" data-i18n-title="files.new_item" title="新建">
+      <i class="bi bi-plus-lg"></i>
+    </button>
+    <div class="fm-mobile-dock" id="fmMobileDock">
+      <button class="fm-dock-btn" type="button" onclick="closeMobileDock();document.getElementById('fmUploadInput').click()">
+        <i class="bi bi-upload"></i><span data-i18n="files.upload_text">上传</span>
+      </button>
+      <button class="fm-dock-btn" type="button" onclick="closeMobileDock();showNewFolderDialog()">
+        <i class="bi bi-folder-plus"></i><span data-i18n="files.new_folder">新建文件夹</span>
+      </button>
+      <button class="fm-dock-btn" type="button" onclick="closeMobileDock();showNewFileDialog()">
+        <i class="bi bi-file-earmark-plus"></i><span data-i18n="files.new_file">新建文件</span>
+      </button>
+      <button class="fm-dock-btn" id="btnPasteMobile" type="button" onclick="closeMobileDock();pasteItems()" disabled>
+        <i class="bi bi-clipboard"></i><span data-i18n="files.paste">粘贴</span>
+      </button>
+      <button class="fm-dock-btn" type="button" onclick="closeMobileDock();selectAllItems()">
+        <i class="bi bi-check2-square"></i><span data-i18n="files.select_all">全选</span>
+      </button>
     </div>
 
     {% else %}
@@ -678,6 +910,18 @@ function goUp() {
 // ═══ 移动端工具函数 ═══
 function isMobile() {
   return window.matchMedia('(max-width: 768px)').matches;
+}
+function toggleMobileDock() {
+  const dock = document.getElementById('fmMobileDock');
+  const fab = document.getElementById('fmMobileFab');
+  if (!dock || !fab) return;
+  const open = !dock.classList.contains('show');
+  dock.classList.toggle('show', open);
+  fab.classList.toggle('dock-open', open);
+}
+function closeMobileDock() {
+  document.getElementById('fmMobileDock')?.classList.remove('show');
+  document.getElementById('fmMobileFab')?.classList.remove('dock-open');
 }
 
 // ═══ 移动端：滑动多选交互（MT 管理器风格）═══
@@ -1261,6 +1505,7 @@ function updateToolbarButtons() {
   setBtnDisabled('btnDelete', !hasSel);
   const hasCB = fmState.clipboard && fmState.clipboard.items && fmState.clipboard.items.length > 0;
   setBtnDisabled('btnPaste', !hasCB);
+  setBtnDisabled('btnPasteMobile', !hasCB);
 }
 function setBtnDisabled(id, dis) {
   const btn = document.getElementById(id);
@@ -1338,6 +1583,7 @@ document.getElementById('fmTableWrap')?.addEventListener('contextmenu', function
   const hasCB = fmState.clipboard && fmState.clipboard.items && fmState.clipboard.items.length > 0;
   let html = '';
   html += `<div class="fm-cmenu-item" onclick="showNewFolderDialog();closeCmenu()"><i class="bi bi-folder-plus"></i>${__i('files.new_folder', '新建文件夹')}<span class="shortcut">Ctrl+N</span></div>`;
+  html += `<div class="fm-cmenu-item" onclick="showNewFileDialog();closeCmenu()"><i class="bi bi-file-earmark-plus"></i>${__i('files.new_file', '新建文件')}</div>`;
   html += `<div class="fm-cmenu-item" onclick="document.getElementById('fmUploadInput').click();closeCmenu()"><i class="bi bi-upload"></i>${__i('files.upload_text', '上传文件')}</div>`;
   html += `<div class="fm-cmenu-item ${hasCB?'':'disabled'}" onclick="${hasCB?'pasteItems();closeCmenu()':''}"><i class="bi bi-clipboard"></i>${__i('files.paste', '粘贴')}<span class="shortcut">Ctrl+V</span></div>`;
   html += `<div class="fm-cmenu-sep"></div>`;
@@ -1361,6 +1607,11 @@ document.getElementById('fmTableWrap')?.addEventListener('contextmenu', function
 // ═══ 全局点击关闭菜单 ═══
 document.addEventListener('click', function(e) {
   if (_cmenuJustOpened) return;
+  if (isMobile() && document.getElementById('fmMobileDock')?.classList.contains('show')) {
+    if (!e.target.closest('#fmMobileDock') && !e.target.closest('#fmMobileFab')) {
+      closeMobileDock();
+    }
+  }
   if (e.target.closest('#fmCmenu')) return;
   closeCmenu();
 });
@@ -1568,6 +1819,71 @@ async function doNewFolder() {
   } else {
     showToast(__i('files.create_failed', '创建失败'), 3000);
   }
+}
+function showNewFileDialog() {
+  document.getElementById('fmModal').innerHTML = `
+    <div class="fm-modal-header">
+      <span><i class="bi bi-file-earmark-plus me-2"></i>${__i('files.new_file', '新建文件')}</span>
+      <button class="fm-modal-close" onclick="hideModal()">&times;</button>
+    </div>
+    <div class="fm-modal-body">
+      <label>${__i('files.file_name_label', '文件名称：')}</label>
+      <input type="text" id="fmNewFileInput" value="${__i('files.new_file_default', 'new.txt')}" onkeydown="if(event.key==='Enter')doNewFile()">
+      <label style="margin-top:12px;">${__i('files.initial_content', '初始内容：')}</label>
+      <textarea id="fmNewFileContent" style="width:100%;min-height:110px;padding:8px 10px;background:var(--fm-bg);border:1px solid var(--fm-border);border-radius:6px;color:var(--fm-text);font-size:.82rem;outline:none;resize:vertical;"></textarea>
+    </div>
+    <div class="fm-modal-footer">
+      <button class="fm-btn-cancel" onclick="hideModal()">${__i('common.cancel', '取消')}</button>
+      <button class="fm-btn-primary" onclick="doNewFile()">${__i('common.create', '创建')}</button>
+    </div>`;
+  showModal();
+  setTimeout(() => { document.getElementById('fmNewFileInput')?.select(); document.getElementById('fmNewFileInput')?.focus(); }, 100);
+}
+async function doNewFile() {
+  const name = document.getElementById('fmNewFileInput')?.value.trim();
+  const content = document.getElementById('fmNewFileContent')?.value || '';
+  if (!name) { hideModal(); return; }
+  const formData = new FormData();
+  formData.append('base_path', CWD);
+  formData.append('filename', name);
+  formData.append('content', content);
+  try {
+    const resp = await fetch(`/files/${SVC}/create`, { method: 'POST', body: formData });
+    const r = await resp.json();
+    if (r.ok) {
+      hideModal();
+      showToast(__i('files.file_created', '文件已创建'));
+      setTimeout(() => location.reload(), 300);
+    } else {
+      showToast(__i('files.create_failed', '创建失败: {error}').replace('{error}', r.error || __i('common.unknown_error', '未知错误')), 3000);
+    }
+  } catch(e) {
+    showToast(__i('files.create_failed', '创建失败: {error}').replace('{error}', ''), 3000);
+  }
+}
+function showMobileCreateSheet() {
+  document.getElementById('fmModal').innerHTML = `
+    <div class="fm-modal-header">
+      <span><i class="bi bi-plus-circle me-2"></i>${__i('files.new_item', '新建')}</span>
+      <button class="fm-modal-close" onclick="hideModal()">&times;</button>
+    </div>
+    <div class="fm-modal-body">
+      <div class="fm-create-grid">
+        <button class="fm-create-option" type="button" onclick="showNewFolderDialog()">
+          <i class="bi bi-folder-plus"></i><span>${__i('files.new_folder', '新建文件夹')}</span>
+        </button>
+        <button class="fm-create-option" type="button" onclick="showNewFileDialog()">
+          <i class="bi bi-file-earmark-plus"></i><span>${__i('files.new_file', '新建文件')}</span>
+        </button>
+        <button class="fm-create-option" type="button" onclick="document.getElementById('fmUploadInput').click();hideModal()">
+          <i class="bi bi-upload"></i><span>${__i('files.upload_text', '上传')}</span>
+        </button>
+        <button class="fm-create-option" type="button" onclick="refreshDir()">
+          <i class="bi bi-arrow-clockwise"></i><span>${__i('files.refresh', '刷新')}</span>
+        </button>
+      </div>
+    </div>`;
+  showModal();
 }
 function downloadSelected() {
   const sel = getSelectedEntries();
@@ -1789,6 +2105,10 @@ function showToast(msg, duration = 2000) {
   if (_toastEl) document.body.removeChild(_toastEl);
   const el = document.createElement('div');
   el.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;background:#1c2128;border:1px solid var(--fm-border);border-radius:8px;padding:10px 24px;font-size:.82rem;color:var(--fm-text);box-shadow:0 4px 20px rgba(0,0,0,.4);`;
+  if (document.documentElement.getAttribute('data-theme') === 'light') {
+    el.style.background = '#ffffff';
+    el.style.boxShadow = '0 12px 32px rgba(140,149,159,.28)';
+  }
   el.textContent = msg;
   document.body.appendChild(el);
   _toastEl = el;
@@ -1803,6 +2123,7 @@ document.addEventListener('keydown', function(e) {
   const modalOpen = document.getElementById('fmModalOverlay')?.classList.contains('show');
 
   if (e.key === 'Escape') {
+    closeMobileDock();
     closeCmenu();
     if (modalOpen) hideModal();
     if (isMobile() && fmState.selected.size > 0) { exitMultiSelect(); return; }
@@ -1817,7 +2138,7 @@ document.addEventListener('keydown', function(e) {
       case 'c': e.preventDefault(); copySelected(); break;
       case 'x': e.preventDefault(); cutSelected(); break;
       case 'v': e.preventDefault(); pasteItems(); break;
-      case 'n': e.preventDefault(); showNewFolderDialog(); break;
+      case 'n': e.preventDefault(); e.shiftKey ? showNewFileDialog() : showNewFolderDialog(); break;
     }
     return;
   }
@@ -1865,7 +2186,55 @@ updateSortArrows();
 renderTable();
 renderBreadcrumb(CWD);
 updateToolbarButtons();
+initMobileToolbarAutoHide();
 {% endif %}
+
+function initMobileToolbarAutoHide() {
+  const wrap = document.getElementById('fmTableWrap');
+  const toolbar = document.getElementById('fmToolbar');
+  if (!wrap || !toolbar) return;
+  let lastTop = wrap.scrollTop;
+  let hidden = toolbar.classList.contains('fm-toolbar-hidden');
+  let ticking = false;
+  let lastToggleAt = 0;
+  const hideDistance = 56;
+  const showDistance = 18;
+  const minDelta = 10;
+  const toggleCooldown = 180;
+
+  function setHidden(nextHidden) {
+    if (hidden === nextHidden) return;
+    const now = performance.now();
+    if (now - lastToggleAt < toggleCooldown) return;
+    hidden = nextHidden;
+    lastToggleAt = now;
+    toolbar.classList.toggle('fm-toolbar-hidden', hidden);
+  }
+
+  wrap.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      if (window.innerWidth > 768) {
+        hidden = false;
+        toolbar.classList.remove('fm-toolbar-hidden');
+        lastTop = wrap.scrollTop;
+        return;
+      }
+      const top = wrap.scrollTop;
+      const delta = top - lastTop;
+      if (top <= showDistance) {
+        setHidden(false);
+      } else if (!hidden && delta > minDelta && top > hideDistance) {
+        setHidden(true);
+      } else if (hidden && delta < -minDelta) {
+        setHidden(false);
+      }
+      lastTop = top;
+    });
+  }, { passive: true });
+}
 
 // ═══ Ctrl+S 保存编辑器快捷键 ═══
 {% if is_file and file_content is not none and file_content != '' %}

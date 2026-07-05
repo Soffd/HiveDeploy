@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title_i18n %}tools.title{% endblock %}{% block title %}快捷工具 - HiveDeploy{% endblock %}
+
+{% block content %}
+<style>
+.tool-list { max-width: 860px; }
+.tool-card-compact .card-body { padding: 1rem; }
+.tool-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: .9rem;
+  align-items: center;
+}
+.tool-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(247,129,102,.1);
+  color: var(--orange);
+  border: 1px solid rgba(247,129,102,.22);
+}
+.tool-icon.magic {
+  background: rgba(63,185,80,.1);
+  color: var(--green);
+  border-color: rgba(63,185,80,.22);
+}
+.tool-meta { min-width: 0; }
+.tool-actions {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+@media (max-width: 767px) {
+  .tool-row { grid-template-columns: 38px minmax(0, 1fr); }
+  .tool-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding-left: 47px;
+  }
+}
+</style>
+
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0 fw-semibold">
+      <i class="bi bi-tools me-2"></i><span data-i18n="tools.heading">快捷工具</span>
+    </h4>
+    <p class="text-secondary mb-0 mt-1" style="font-size:.84rem;" data-i18n="tools.subtitle">常用修复操作集中在这里。</p>
+  </div>
+</div>
+
+<div class="tool-list">
+  <div class="card tool-card-compact">
+    <div class="card-body">
+      <div class="tool-row">
+        <div class="tool-icon"><i class="bi bi-key"></i></div>
+        <div class="tool-meta">
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <span class="fw-semibold" data-i18n="tools.astrbot_reset_title">重置 AstrBot 面板密码</span>
+            {% if reset_astrbot_password_badge %}
+            <span class="badge bg-secondary">{{ reset_astrbot_password_badge }}</span>
+            {% endif %}
+            {% if reset_astrbot_password_access == 'vip' %}
+            <span class="badge bg-warning text-dark"><i class="bi bi-stars me-1"></i><span data-i18n="tools.vip_only">VIP专属</span></span>
+            {% elif reset_astrbot_password_access == 'limited' %}
+            <span class="badge bg-info text-dark"><i class="bi bi-clock-history me-1"></i><span data-i18n="tools.limited_free">限免</span></span>
+            {% else %}
+            <span class="badge bg-success"><i class="bi bi-unlock me-1"></i><span data-i18n="tools.free">免费</span></span>
+            {% endif %}
+            <span class="badge bg-{{ status_badge(container_status.get('astrbot', 'unknown')) }}">{{ container_status.get('astrbot', 'unknown') }}</span>
+          </div>
+          <div class="text-secondary" style="font-size:.82rem;" data-i18n="tools.astrbot_reset_desc_short">清除面板登录凭据并重启 AstrBot，新密码在 AstrBot 日志中查看。</div>
+          {% if reset_astrbot_password_access == 'vip' and not user_is_vip %}
+          <div class="text-info mt-1" style="font-size:.78rem;"><i class="bi bi-lock me-1"></i><span data-i18n="tools.vip_required">该快捷工具当前仅限 VIP 用户使用。</span></div>
+          {% elif not instance %}
+          <div class="text-secondary mt-1" style="font-size:.78rem;" data-i18n="tools.no_instance">当前账号还没有实例，无法使用快捷工具。</div>
+          {% elif container_status.get('astrbot') != 'running' %}
+          <div class="text-secondary mt-1" style="font-size:.78rem;" data-i18n="tools.astrbot_not_running">AstrBot 容器未运行，请先启动 AstrBot。</div>
+          {% endif %}
+        </div>
+        <div class="tool-actions">
+          <button class="btn btn-danger btn-action" id="resetAstrbotBtn" onclick="resetAstrbotPassword()" {% if not instance or container_status.get('astrbot') != 'running' or not reset_astrbot_password_allowed %}disabled{% endif %}>
+            <i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="tools.reset_now">立即重置并重启</span>
+          </button>
+          <a href="/logs/astrbot" class="btn btn-outline-secondary btn-action" data-i18n-title="tools.open_astrbot_logs" title="查看 AstrBot 日志">
+            <i class="bi bi-terminal me-1"></i><span data-i18n="tools.open_astrbot_logs">查看日志</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card tool-card-compact mt-3">
+    <div class="card-body">
+      <div class="tool-row">
+        <div class="tool-icon magic"><i class="bi bi-magic"></i></div>
+        <div class="tool-meta">
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <span class="fw-semibold" data-i18n="tools.auto_config_title">一键配置连接</span>
+            {% if auto_config_badge %}
+            <span class="badge bg-secondary">{{ auto_config_badge }}</span>
+            {% endif %}
+            {% if auto_config_access == 'vip' %}
+            <span class="badge bg-warning text-dark"><i class="bi bi-stars me-1"></i><span data-i18n="tools.vip_only">VIP专属</span></span>
+            {% elif auto_config_access == 'limited' %}
+            <span class="badge bg-info text-dark"><i class="bi bi-clock-history me-1"></i><span data-i18n="tools.limited_free">限免</span></span>
+            {% else %}
+            <span class="badge bg-success"><i class="bi bi-unlock me-1"></i><span data-i18n="tools.free">免费</span></span>
+            {% endif %}
+            <span class="badge bg-{{ status_badge(container_status.get('astrbot', 'unknown')) }}">AstrBot {{ container_status.get('astrbot', 'unknown') }}</span>
+            <span class="badge bg-{{ status_badge(container_status.get('napcat', 'unknown')) }}">NapCat {{ container_status.get('napcat', 'unknown') }}</span>
+          </div>
+          <div class="text-secondary" style="font-size:.82rem;" data-i18n="tools.auto_config_desc_short">自动写入 AstrBot 与 NapCat 反向 WebSocket 配置并重启容器。</div>
+          {% if auto_config_access == 'vip' and not user_is_vip %}
+          <div class="text-info mt-1" style="font-size:.78rem;"><i class="bi bi-lock me-1"></i><span data-i18n="tools.vip_required">该快捷工具当前仅限 VIP 用户使用。</span></div>
+          {% elif not instance %}
+          <div class="text-secondary mt-1" style="font-size:.78rem;" data-i18n="tools.no_instance">当前账号还没有实例，无法使用快捷工具。</div>
+          {% elif (instance.bot_type or 'napcat') != 'napcat' %}
+          <div class="text-secondary mt-1" style="font-size:.78rem;" data-i18n="tools.auto_config_napcat_only">一键配置仅支持 NapCat。</div>
+          {% elif container_status.get('astrbot') != 'running' or container_status.get('napcat') != 'running' %}
+          <div class="text-secondary mt-1" style="font-size:.78rem;" data-i18n="tools.auto_config_not_ready">请先确认 AstrBot 与 NapCat 容器均在运行。</div>
+          {% endif %}
+        </div>
+        <div class="tool-actions">
+          <button class="btn btn-success btn-action" id="autoConfigBtn" onclick="autoConfigNapcat()" {% if not instance or (instance.bot_type or 'napcat') != 'napcat' or container_status.get('astrbot') != 'running' or container_status.get('napcat') != 'running' or not auto_config_allowed %}disabled{% endif %}>
+            <i class="bi bi-magic me-1"></i><span data-i18n="tools.auto_config_now">一键配置</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function resetAstrbotPassword(){
+  const btn=document.getElementById('resetAstrbotBtn');
+  if(!btn)return;
+  const confirmText = window.__i18n ? window.__i18n('tools.reset_confirm', '确认重置 AstrBot 面板密码并重启容器？') : '确认重置 AstrBot 面板密码并重启容器？';
+  if(!confirm(confirmText))return;
+  const old=btn.innerHTML;
+  btn.disabled=true;
+  btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>'+(window.__i18n ? window.__i18n('tools.resetting', '处理中...') : '处理中...');
+  try{
+    const resp=await fetch('/api/tools/reset-astrbot-password',{method:'POST'});
+    const data=await resp.json();
+    if(data.ok){
+      alert((window.__i18n ? window.__i18n('tools.reset_success', '已重置并重启 AstrBot。请查看日志中的 Initial password。') : '已重置并重启 AstrBot。请查看日志中的 Initial password。') + '\n' + data.config_path);
+    }else{
+      alert(data.error || (window.__i18n ? window.__i18n('tools.reset_failed', '重置失败') : '重置失败'));
+    }
+  }catch(e){
+    alert((window.__i18n ? window.__i18n('tools.reset_failed', '重置失败') : '重置失败') + ': ' + e.message);
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML=old;
+  }
+}
+
+async function autoConfigNapcat(){
+  const btn=document.getElementById('autoConfigBtn');
+  if(!btn)return;
+  const confirmText = window.__i18n ? window.__i18n('tools.auto_config_confirm', '将自动覆写 AstrBot 与 NapCat 的反向 WebSocket 配置，并重启两个容器使配置生效。确定继续？') : '将自动覆写 AstrBot 与 NapCat 的反向 WebSocket 配置，并重启两个容器使配置生效。确定继续？';
+  if(!confirm(confirmText))return;
+  const old=btn.innerHTML;
+  btn.disabled=true;
+  btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>'+(window.__i18n ? window.__i18n('tools.auto_config_working', '配置中...') : '配置中...');
+  try{
+    const resp=await fetch('/api/instance/auto_config',{method:'POST'});
+    const data=await resp.json();
+    if(data.ok){
+      alert((window.__i18n ? window.__i18n('tools.auto_config_success', '配置完成，已重启 AstrBot 与 NapCat。\nWS 地址：{ws_url}') : '配置完成，已重启 AstrBot 与 NapCat。\nWS 地址：{ws_url}').replace('{ws_url}', data.ws_url || ''));
+    }else{
+      alert(data.error || (window.__i18n ? window.__i18n('tools.auto_config_failed', '配置失败') : '配置失败'));
+    }
+  }catch(e){
+    alert((window.__i18n ? window.__i18n('tools.auto_config_failed', '配置失败') : '配置失败') + ': ' + e.message);
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML=old;
+  }
+}
+</script>
+{% endblock %}

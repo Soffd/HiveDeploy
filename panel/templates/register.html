@@ -1,8 +1,16 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-bs-theme="dark">
+<html lang="zh-CN" data-bs-theme="dark" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    (function () {
+      const mode = localStorage.getItem('hive_theme_mode') || 'dark';
+      const isLight = mode === 'light' || (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+      document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-bs-theme', isLight ? 'light' : 'dark');
+    })();
+  </script>
   <title data-i18n="register.title">注册 — HiveDeploy</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
@@ -269,8 +277,12 @@
       .brand { font-size: 1.4rem; }
     }
   </style>
+  <link rel="stylesheet" href="/static/css/auth-theme.css">
+  <script src="/static/i18n/i18n.js" defer></script>
+  <script src="/static/js/auth-theme.js" defer></script>
 </head>
 <body>
+<div id="authThemeSwitcher"></div>
 <div class="auth-card">
   <div class="text-center mb-4" style="animation: fadeInUp 0.4s ease-out;">
     <div class="brand">
@@ -356,6 +368,22 @@
     </div>
 
     <div class="mb-3">
+      <label class="form-label" data-i18n="register.captcha_label">图形验证码</label>
+      <div class="d-flex gap-2 align-items-stretch">
+        <input type="text" class="form-control" id="emailCaptchaInput" maxlength="6" autocomplete="off"
+               data-i18n-placeholder="register.captcha_placeholder" placeholder="输入图中字符"
+               style="background:var(--bg-default); border:1px solid var(--border-default); color:var(--text-primary); border-radius:var(--radius-sm); text-transform:uppercase;">
+        <img id="emailCaptchaImage" alt="captcha" role="button" onclick="refreshEmailCaptcha()"
+             style="width:168px;height:54px;border-radius:var(--radius-sm);border:1px solid var(--border-default);cursor:pointer;background:#f6f8fa;">
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="refreshEmailCaptcha()" title="刷新"
+                data-i18n-title="register.captcha_refresh" style="border-radius:var(--radius-sm);">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+      <p class="text-secondary mt-1" style="font-size:.72rem;" data-i18n="register.captcha_hint">发送邮件前请输入图中字符，不区分大小写</p>
+    </div>
+
+    <div class="mb-3">
       <label class="form-label"><span data-i18n="register.email_code_label">邮箱验证码</span> <span class="hint text-danger" data-i18n="register.email_code_required">（必填）</span></label>
       <div class="input-group">
         <input type="text" class="form-control" name="code" required
@@ -393,11 +421,26 @@
 </div>
 <script>
 let _cd = 0;
+const _emailCaptchaId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('cap_' + Date.now() + '_' + Math.random().toString(16).slice(2));
+
+function refreshEmailCaptcha() {
+  const input = document.getElementById('emailCaptchaInput');
+  const img = document.getElementById('emailCaptchaImage');
+  if (input) input.value = '';
+  if (img) img.src = '/api/email/captcha/' + encodeURIComponent(_emailCaptchaId) + '?purpose=register&t=' + Date.now();
+}
+
 async function sendCode() {
   if (_cd > 0) return;
   const emailEl = document.querySelector('input[name="email"]');
   if (!emailEl || !emailEl.value) {
     alert(window.__i18n ? window.__i18n('register.alert_fill_email', '请先填写邮箱地址') : '请先填写邮箱地址');
+    return;
+  }
+  const captchaEl = document.getElementById('emailCaptchaInput');
+  if (!captchaEl || !captchaEl.value.trim()) {
+    alert(window.__i18n ? window.__i18n('register.captcha_required', '请先输入图形验证码') : '请先输入图形验证码');
+    captchaEl && captchaEl.focus();
     return;
   }
   const btn = document.getElementById('sendCodeBtn');
@@ -407,9 +450,12 @@ async function sendCode() {
     const fd = new FormData();
     fd.append('email', emailEl.value);
     fd.append('purpose', 'register');
+    fd.append('captcha_id', _emailCaptchaId);
+    fd.append('captcha_code', captchaEl.value.trim());
     const r = await fetch('/api/email/send-code', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.ok) {
+      refreshEmailCaptcha();
       _cd = 60;
       const resendText = window.__i18n ? window.__i18n('register.resend_countdown', '秒后重发') : '秒后重发';
       const sendText = window.__i18n ? window.__i18n('register.send_code_btn', '发送验证码') : '发送验证码';
@@ -429,13 +475,37 @@ async function sendCode() {
       }, 1000);
     } else {
       alert(d.error || (window.__i18n ? window.__i18n('register.send_failed', '发送失败') : '发送失败'));
-      btn.disabled = false;
+      refreshEmailCaptcha();
+      if (d.retry_after && Number(d.retry_after) > 0) {
+        _cd = Number(d.retry_after);
+        const resendText = window.__i18n ? window.__i18n('register.resend_countdown', '秒后重发') : '秒后重发';
+        const sendText = window.__i18n ? window.__i18n('register.send_code_btn', '发送验证码') : '发送验证码';
+        btn.textContent = _cd + resendText;
+        btn.classList.remove('btn-outline-info');
+        btn.classList.add('btn-outline-secondary');
+        const t = setInterval(() => {
+          _cd--;
+          btn.textContent = _cd + resendText;
+          if (_cd <= 0) {
+            clearInterval(t);
+            btn.textContent = sendText;
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-outline-info');
+            btn.disabled = false;
+          }
+        }, 1000);
+      } else {
+        btn.disabled = false;
+      }
     }
   } catch(e) {
     alert(window.__i18n ? window.__i18n('register.network_error', '网络错误，请重试') : '网络错误，请重试');
+    refreshEmailCaptcha();
     btn.disabled = false;
   }
 }
+
+refreshEmailCaptcha();
 </script>
 </body>
 </html>

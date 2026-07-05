@@ -62,8 +62,7 @@
     </small>
   </div>
   <div class="card-body p-0" style="position:relative;">
-    <div class="log-box" id="logBox" style="height:500px; letter-spacing: 0.01em; line-height: 1.6;"
-         onclick="copyLogs()" data-i18n-title="logs.copy_all" title="点击复制全部日志">{{ logs }}</div>
+    <div class="log-box" id="logBox" style="height:500px; letter-spacing: 0.01em; line-height: 1.6;">{{ logs }}</div>
   </div>
 </div>
 
@@ -79,7 +78,7 @@
 
 <div class="alert alert-info py-2 mb-0" style="font-size:.8rem;">
   <i class="bi bi-lightbulb me-1"></i>
-  <span data-i18n="logs.click_to_copy_hint">点击日志区域即可一键复制全部日志内容。自动每 5 秒刷新（仅在开启自动滚动时）。</span>
+  <span data-i18n="logs.select_copy_hint">可直接选中日志中的部分内容手动复制。自动每 5 秒刷新（仅在开启自动滚动时）。</span>
 </div>
 {% endblock %}
 
@@ -135,11 +134,7 @@ async function refreshLogs() {
 
 function copyLogs() {
   const text = logBox.textContent || '';
-  navigator.clipboard.writeText(text.trim()).then(() => {
-    copyWithToast(text, window.__i18n ? window.__i18n('dashboard.logs', '日志') : '日志');
-  }).catch(() => {
-    showToast(window.__i18n ? window.__i18n('toast.copy_failed', '复制失败') : '复制失败', 'error');
-  });
+  copyWithToast(text.trim(), window.__i18n ? window.__i18n('dashboard.logs', '日志') : '日志');
 }
 
 scrollBottom();

@@ -62,8 +62,34 @@ const HDT = {
 };
 
 // ── 复制到剪贴板 ──────────────────────────────────────────────
+function hdWriteClipboard(text) {
+  const value = String(text || '').trim();
+  if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(value);
+  }
+  return new Promise((resolve, reject) => {
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+      const ok = document.execCommand('copy');
+      textarea.remove();
+      ok ? resolve() : reject(new Error('copy command failed'));
+    } catch (err) {
+      textarea.remove();
+      reject(err);
+    }
+  });
+}
+
 function copyText(text, btnEl) {
-  navigator.clipboard.writeText(text).then(() => {
+  hdWriteClipboard(text).then(() => {
     HDT.success('已复制到剪贴板', 1500);
     if (btnEl) {
       const icon = btnEl.querySelector('i');
@@ -81,14 +107,14 @@ function copyText(text, btnEl) {
 // 兼容旧版调用
 if (typeof window.copyText_legacy === 'undefined') {
   window.copyText_legacy = function(text) {
-    navigator.clipboard.writeText(text).then(() => {
+    hdWriteClipboard(text).then(() => {
       if (typeof event !== 'undefined' && event.target) {
         const el = event.target;
         const orig = el.className;
         el.className = el.className.replace('bi-copy','bi-check2');
         setTimeout(() => el.className = orig, 1500);
       }
-    });
+    }).catch(() => HDT.error('复制失败，请手动复制', 2000));
   };
 }
 

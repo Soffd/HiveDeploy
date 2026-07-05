@@ -1,0 +1,53 @@
+# ============================================================
+# HiveDeploy - 无域名 / 非标准端口部署
+# ============================================================
+# 适用场景：
+#   - 国内服务器未备案 80/443 端口
+#   - 仅 IP + 端口访问（无域名）
+#   - 无需 Traefik（Panel CORS 由 FastAPI 中间件处理）
+#   - Bot 实例仍通过 Docker 端口映射直连（不受影响）
+#
+# 部署命令：
+#   docker compose -f docker-compose.simple.yml up -d
+#
+# 访问地址：http://<服务器IP>:9200
+# 通过环境变量 PANEL_PORT 可自定义端口
+# ============================================================
+
+services:
+  panel:
+    build:
+      context: ./panel
+      dockerfile: Dockerfile.cn
+    container_name: bot_panel
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "${PANEL_PORT:-9200}:3000"
+    environment:
+      - TZ=Asia/Shanghai
+      - SECRET_KEY=${SECRET_KEY:-change_this_secret_key_in_production}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - DATA_DIR=/data/instances
+      - DOCKER_SOCKET=/var/run/docker.sock
+      - PLATFORM_HOST=${PLATFORM_HOST:-localhost}
+      - BOT_NETWORK=bot_user_net
+      - INSTANCE_PORT_BASE=${INSTANCE_PORT_BASE:-20000}
+      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-*}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - bot_panel_db:/app/db
+      - bot_instances_data:/data/instances
+    networks:
+      - bot_panel_net
+
+volumes:
+  bot_panel_db:
+  bot_instances_data:
+
+networks:
+  bot_panel_net:
+  bot_user_net:
